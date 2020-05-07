@@ -65,6 +65,8 @@ namespace librealsense
                    *_was_picked_opt, *_selected_opt;
             uint32_t color_tex;
             uint32_t depth_tex;
+            GLuint pboIds[2];
+            int index = 0;
         };
 
     }

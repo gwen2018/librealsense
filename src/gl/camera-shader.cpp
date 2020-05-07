@@ -86,6 +86,8 @@ namespace librealsense
             _viz.reset();
             _blit.reset();
             _fbo.reset();
+
+            glDeleteBuffers(2, pboIds);
         }
 
         void camera_renderer::create_gpu_resources()
@@ -107,6 +109,17 @@ namespace librealsense
 
                 glGenTextures(1, &color_tex);
                 glGenTextures(1, &depth_tex);
+
+                glGenBuffers(2, pboIds);
+
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, pboIds[0]);
+                check_gl_error();
+                glBufferData(GL_PIXEL_PACK_BUFFER, 4, 0, GL_STREAM_READ);
+                check_gl_error();
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, pboIds[1]);
+                check_gl_error();
+                glBufferData(GL_PIXEL_PACK_BUFFER, 4, 0, GL_STREAM_READ);
+                check_gl_error();
             }
         }
 
@@ -240,27 +253,24 @@ namespace librealsense
                             auto x = _mouse_x_opt->query() - vp[0];
                             auto y = vp[3] + vp[1] - _mouse_y_opt->query();
 
+#if MOUSE_PICK_USE_PBO
+                            GLubyte* pData = NULL;
+#endif
+
                             glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo->get());
                             glReadBuffer(GL_COLOR_ATTACHMENT0);
 
-#if MOUSE_PICK_USE_PBO
-                            GLubyte* pData = NULL;
-                            GLuint pboId;
-                            glGenBuffers(1, &pboId);
-
-                            glBindBuffer(GL_PIXEL_PACK_BUFFER, pboId);
-                            glBufferData(GL_PIXEL_PACK_BUFFER, 4, 0, GL_STREAM_READ);
-
-                            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-#endif
-
                             uint8_t rgba[4];
 #if MOUSE_PICK_USE_PBO
-                            glBindBuffer(GL_PIXEL_PACK_BUFFER, pboId);
+                            glBindBuffer(GL_PIXEL_PACK_BUFFER, pboIds[0 + index]);
                             glReadPixels(x, y, 1, 1, GL_RGBA, GL_BYTE, 0);
 
-                            glBindBuffer(GL_PIXEL_PACK_BUFFER, pboId);
-                            pData = (GLubyte*) glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+                            glBindBuffer(GL_PIXEL_PACK_BUFFER, pboIds[0 + (1 - index)]);
+                            check_gl_error();
+                            {
+                                pData = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+                                check_gl_error();
+                            }
 
                             if (pData)
                             {
@@ -269,7 +279,8 @@ namespace librealsense
                             }
 
                             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-                            glDeleteBuffers(1, &pboId);
+
+                            index = (index + 1) % 2;
 #else
                             glReadPixels(x, y, 1, 1, GL_RGBA, GL_BYTE, &rgba);
 #endif
