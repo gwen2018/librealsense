@@ -2152,7 +2152,7 @@ namespace rs2
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glBegin(GL_TRIANGLES);
 
-        if (isnanf(_curr_normal.x) || isnanf(_curr_normal.y) || isnanf(_curr_normal.z))
+        if (std::isnan(_curr_normal.x) || std::isnan(_curr_normal.y) || std::isnan(_curr_normal.z))
             _curr_normal = _normal;
 
         float size = _picked.z * 0.03f;
