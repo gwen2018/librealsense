@@ -475,8 +475,10 @@ namespace librealsense
                             _fbo->createTextureAttachment(color_tex);
                             _fbo->createDepthTextureAttachment(depth_tex);
 
+// TODO: GL_RGB16F works much better performance on Intel graphics, but slow on Nvidia (?), check
                             glBindTexture(GL_TEXTURE_2D, xyz_tex);
-                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, vp[2], vp[3], 0, GL_RGBA, GL_FLOAT, nullptr);
+                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
+//                          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -484,6 +486,7 @@ namespace librealsense
 
                             glBindTexture(GL_TEXTURE_2D, normal_tex);
                             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
+//                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
