@@ -427,7 +427,7 @@ namespace librealsense
                     auto vf_profile = f.get_profile().as<video_stream_profile>();
                     int width = vf_profile.width();
                     int height = vf_profile.height();
-                    
+
                     if (glsl_enabled())
                     {
                         if (_width != width || _height != height)
@@ -467,7 +467,7 @@ namespace librealsense
                             glGetIntegerv(GL_VIEWPORT, vp);
                             check_gl_error();
 
-                            _fbo->set_dims(vp[2], vp[3]);
+                            _fbo->set_dims(width, height);
 
                             glBindFramebuffer(GL_FRAMEBUFFER, _fbo->get());
                             glDrawBuffer(GL_COLOR_ATTACHMENT0);
@@ -477,16 +477,16 @@ namespace librealsense
 
 // TODO: GL_RGB16F works much better performance on Intel graphics, but slow on Nvidia (?), check
                             glBindTexture(GL_TEXTURE_2D, xyz_tex);
-                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
-//                          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
+                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+//                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
                             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, xyz_tex, 0);
 
                             glBindTexture(GL_TEXTURE_2D, normal_tex);
-                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
-//                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, vp[2], vp[3], 0, GL_RGB, GL_FLOAT, nullptr);
+                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+//                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -513,10 +513,14 @@ namespace librealsense
                             _shader->set_picked_id(_picked_id_opt->query());
                             _shader->set_shaded(_shaded_opt->query());
 
+                            // mouse click location in image coordinates
+                            int x = 0;
+                            int y = 0;
+
                             if (_mouse_pick_opt->query() > 0.f)
                             {
-                                auto x = _mouse_x_opt->query() - vp[0];
-                                auto y = vp[3] + vp[1] - _mouse_y_opt->query();
+                                x = ((_mouse_x_opt->query() - vp[0]) / vp[2]) * width;
+                                y = ((vp[3] + vp[1] - _mouse_y_opt->query()) / vp[3]) * height;
                                 _shader->set_mouse_xy(x, y);
                             }
                             else _shader->set_mouse_xy(-1, -1);
@@ -544,8 +548,6 @@ namespace librealsense
                             if (_mouse_pick_opt->query() > 0.f)
                             {
                                 scoped_timer t("mouse pick");
-                                auto x = _mouse_x_opt->query() - vp[0];
-                                auto y = vp[3] + vp[1] - _mouse_y_opt->query();
 
                                 auto proj = get_matrix(RS2_GL_MATRIX_PROJECTION) * get_matrix(RS2_GL_MATRIX_CAMERA) * get_matrix(RS2_GL_MATRIX_TRANSFORMATION);
 
@@ -697,7 +699,7 @@ namespace librealsense
                             glBindTexture(GL_TEXTURE_2D, color_tex);
 
                             _blit->begin();
-                            _blit->set_image_size(vp[2], vp[3]);
+                            _blit->set_image_size(width, height);
                             _blit->set_selected(_selected_opt->query() > 0.f);
                             _blit->end();
 

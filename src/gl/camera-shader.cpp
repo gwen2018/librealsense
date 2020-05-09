@@ -194,6 +194,10 @@ namespace librealsense
 
             const auto& dev = ((frame_interface*)f.get())->get_sensor()->get_device();
 
+            auto vf = f.as<rs2::video_frame>();
+            auto width = vf.get_width();
+            auto height = vf.get_height();
+
             int index = -1;
 
             if (dev.supports_info(RS2_CAMERA_INFO_NAME))
@@ -218,7 +222,7 @@ namespace librealsense
                         glGetIntegerv(GL_VIEWPORT, vp);
                         check_gl_error();
 
-                        _fbo->set_dims(vp[2], vp[3]);
+                        _fbo->set_dims(width, height);
 
                         glBindFramebuffer(GL_FRAMEBUFFER, _fbo->get());
                         glDrawBuffer(GL_COLOR_ATTACHMENT0);
@@ -250,8 +254,8 @@ namespace librealsense
 
                         if (_mouse_pick_opt->query() > 0.f)
                         {
-                            auto x = _mouse_x_opt->query() - vp[0];
-                            auto y = vp[3] + vp[1] - _mouse_y_opt->query();
+                            auto x = ((_mouse_x_opt->query() - vp[0])/vp[2]) * width;
+                            auto y = ((vp[3] + vp[1] - _mouse_y_opt->query())/vp[3]) * height;
 
 #if MOUSE_PICK_USE_PBO
                             GLubyte* pData = NULL;
@@ -302,7 +306,7 @@ namespace librealsense
                         glBindTexture(GL_TEXTURE_2D, color_tex);
 
                         _blit->begin();
-                        _blit->set_image_size(vp[2], vp[3]);
+                        _blit->set_image_size(width, height);
                         _blit->set_selected(_selected_opt->query() > 0.f);
                         _blit->end();
 
