@@ -16,7 +16,6 @@ import threading
 # L515
 READ_TABLE  = 0x43     # READ_TABLE 0x243 0
 WRITE_TABLE = 0x44     # WRITE_TABLE 0 <table>
-IMU_TABLE   = 0x243
 
 is_data = None
 get_key = None
@@ -708,20 +707,20 @@ def main():
             outfile.write(imu_calib_table.astype('f').tostring())
 
         is_write = input('Would you like to write the results to the camera? (Y/N)')
-	is_write = 'Y' in is_write.upper()
-	if is_write:
-	     print('Writing calibration to device.')
+        is_write = 'Y' in is_write.upper()
+        if is_write:
+            print('Writing calibration to device.')
 
-	     if product_line == 'L500':
-	         l500_send_command(dev, WRITE_TABLE, 0, 0, 0, 0, imu_calib_table)
-	     else:
-                 calibration_table = get_calibration_table(imu_calib_table)
-                 eeprom = get_eeprom(calibration_table)
-                 write_eeprom_to_camera(eeprom, serial_no)
+            if product_line == 'L500':
+                l500_send_command(dev, WRITE_TABLE, 0, 0, 0, 0, imu_calib_table)
+            else:
+                calibration_table = get_calibration_table(imu_calib_table)
+                eeprom = get_eeprom(calibration_table)
+                write_eeprom_to_camera(eeprom, serial_no)
 
-	     print('Done.')
-	else:
-	     print('Abort writing to device')
+            print('Done.')
+        else:
+            print('Abort writing to device')
 
     except Exception as e:
         print ('\nDone. %s' % e)
