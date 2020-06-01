@@ -561,7 +561,7 @@ namespace librealsense
         {
             dm_v2_eeprom_id     = 0x0101,   // The pack alignment is Big-endian
             tm1_eeprom_id       = 0x0002,
-            l500_eeprom_id      = 0x0102
+            l500_eeprom_id      = 0x0105
         };
 
         struct depth_table_control

@@ -329,6 +329,7 @@ def get_IMU_Calib_Table(X, product_line):
     table_type = '0x20'
 
     if product_line == 'L500':
+        version = ['0x05', '0x01']
         table_type = '0x243'
 
     header = CHeader(version, table_type)
