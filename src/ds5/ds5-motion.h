@@ -200,15 +200,18 @@ namespace librealsense
         {
             imu_calib_table = *(ds::check_calib<ds::dm_v2_calibration_table>(raw_data));
 
-            // bmi_055
-            // L515 specific - BMI055 assembly transformation based on mechanical drawing (mm) - TBD
+            // Bosch BMI055
+            // L515 specific - BMI055 assembly transformation based on mechanical drawing (mm)
+            // Parameters will need to check with mechanical drawing, TBD
             _def_extr = { { 1, 0, 0, 0, 1, 0, 0, 0, 1 },{ -0.00552f, 0.0051f, 0.01174f } };
-            _imu_2_depth_rot = { { -1,0,0 },{ 0,1,0 },{ 0,0,-1 } };        //Reference spec : Bosch BMI055
+            // Reference spec : Bosch BMI055
+            // Need check with mechanical drawing, TBD
+            _imu_2_depth_rot = { { 1,0,0 },{ 0,1,0 },{ 0,0,1 } };
         }
         l500_imu_calib_parser(const l500_imu_calib_parser&);
         virtual ~l500_imu_calib_parser() {}
 
-        float3x3 imu_to_depth_alignment() { return{ { 1,0,0 },{ 0,1,0 },{ 0,0,1 } }; }
+        float3x3 imu_to_depth_alignment() { return _imu_2_depth_rot; }
 
         ds::imu_intrinsic get_intrinsic(rs2_stream stream)
         {
