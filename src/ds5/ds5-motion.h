@@ -198,7 +198,12 @@ namespace librealsense
     public:
         l500_imu_calib_parser(const std::vector<uint8_t>& raw_data)
         {
-            imu_calib_table = *(ds::check_calib<ds::imu_calibration_table>(raw_data));
+            imu_calib_table = *(ds::check_calib<ds::dm_v2_calibration_table>(raw_data));
+
+            // bmi_055
+            // L515 specific - BMI055 assembly transformation based on mechanical drawing (mm) - TBD
+            _def_extr = { { 1, 0, 0, 0, 1, 0, 0, 0, 1 },{ -0.00552f, 0.0051f, 0.01174f } };
+            _imu_2_depth_rot = { { -1,0,0 },{ 0,1,0 },{ 0,0,-1 } };        //Reference spec : Bosch BMI055
         }
         l500_imu_calib_parser(const l500_imu_calib_parser&);
         virtual ~l500_imu_calib_parser() {}
@@ -207,36 +212,33 @@ namespace librealsense
 
         ds::imu_intrinsic get_intrinsic(rs2_stream stream)
         {
-            ds::imu_intrinsics in_intr;
+            ds::dm_v2_imu_intrinsic in_intr;
             switch (stream)
             {
             case RS2_STREAM_ACCEL:
-                in_intr = imu_calib_table.accel_intrinsics; break;
+                in_intr = imu_calib_table.accel_intrinsic; break;
             case RS2_STREAM_GYRO:
-                in_intr = imu_calib_table.gyro_intrinsics; break;
+                in_intr = imu_calib_table.gyro_intrinsic;
+                in_intr.bias = in_intr.bias * static_cast<float>(d2r);        // The gyro bias is calculated in Deg/sec
+                break;
             default:
-                throw std::runtime_error(to_string() << "TM1 IMU Calibration does not support intrinsic for : " << rs2_stream_to_string(stream) << " !");
+                throw std::runtime_error(to_string() << "Depth Module V2 does not provide intrinsic for stream type : " << rs2_stream_to_string(stream) << " !");
             }
-            ds::imu_intrinsic out_intr{};
-            for (auto i = 0; i < 3; i++)
-            {
-                out_intr.sensitivity(i, i) = in_intr.scale[i];
-                out_intr.bias[i] = in_intr.bias[i];
-            }
-            return out_intr;
+
+            return{ in_intr.sensitivity, in_intr.bias,{ 0,0,0 },{ 0,0,0 } };
         }
 
         rs2_extrinsics get_extrinsic_to(rs2_stream stream)
         {
-            if (!(RS2_STREAM_ACCEL == stream) && !(RS2_STREAM_GYRO == stream))
-                throw std::runtime_error(to_string() << "Depth Module V2 does not support extrinsic for : " << rs2_stream_to_string(stream) << " !");
-
+            // TBD
             rs2_extrinsics extr;
             return extr;
         }
 
     private:
-        ds::imu_calibration_table  imu_calib_table;
+        ds::dm_v2_calibration_table  imu_calib_table;
+        rs2_extrinsics      _def_extr;
+        float3x3            _imu_2_depth_rot;
     };
 
     class mm_calib_handler
