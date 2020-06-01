@@ -193,10 +193,56 @@ namespace librealsense
         float3x3            _imu_2_depth_rot;
     };
 
+    class l500_imu_calib_parser : public mm_calib_parser
+    {
+    public:
+        l500_imu_calib_parser(const std::vector<uint8_t>& raw_data)
+        {
+            imu_calib_table = *(ds::check_calib<ds::imu_calibration_table>(raw_data));
+        }
+        l500_imu_calib_parser(const l500_imu_calib_parser&);
+        virtual ~l500_imu_calib_parser() {}
+
+        float3x3 imu_to_depth_alignment() { return{ { 1,0,0 },{ 0,1,0 },{ 0,0,1 } }; }
+
+        ds::imu_intrinsic get_intrinsic(rs2_stream stream)
+        {
+            ds::imu_intrinsics in_intr;
+            switch (stream)
+            {
+            case RS2_STREAM_ACCEL:
+                in_intr = imu_calib_table.accel_intrinsics; break;
+            case RS2_STREAM_GYRO:
+                in_intr = imu_calib_table.gyro_intrinsics; break;
+            default:
+                throw std::runtime_error(to_string() << "TM1 IMU Calibration does not support intrinsic for : " << rs2_stream_to_string(stream) << " !");
+            }
+            ds::imu_intrinsic out_intr{};
+            for (auto i = 0; i < 3; i++)
+            {
+                out_intr.sensitivity(i, i) = in_intr.scale[i];
+                out_intr.bias[i] = in_intr.bias[i];
+            }
+            return out_intr;
+        }
+
+        rs2_extrinsics get_extrinsic_to(rs2_stream stream)
+        {
+            if (!(RS2_STREAM_ACCEL == stream) && !(RS2_STREAM_GYRO == stream))
+                throw std::runtime_error(to_string() << "Depth Module V2 does not support extrinsic for : " << rs2_stream_to_string(stream) << " !");
+
+            rs2_extrinsics extr;
+            return extr;
+        }
+
+    private:
+        ds::imu_calibration_table  imu_calib_table;
+    };
+
     class mm_calib_handler
     {
     public:
-        mm_calib_handler(std::shared_ptr<hw_monitor> hw_monitor, ds::d400_caps dev_cap);
+        mm_calib_handler(std::vector<uint8_t> imu_raw, ds::d400_caps dev_cap = ds::d400_caps::CAP_UNDEFINED);
         ~mm_calib_handler() {}
 
         ds::imu_intrinsic get_intrinsic(rs2_stream);
@@ -205,11 +251,9 @@ namespace librealsense
         float3x3 imu_to_depth_alignment() { return (*_calib_parser)->imu_to_depth_alignment(); }
 
     private:
-        std::shared_ptr<hw_monitor> _hw_monitor;
         ds::d400_caps                   _dev_cap;
         lazy< std::shared_ptr<mm_calib_parser>> _calib_parser;
-        lazy<std::vector<uint8_t>>      _imu_eeprom_raw;
-        std::vector<uint8_t>            get_imu_eeprom_raw() const;
+        std::vector<uint8_t>      _imu_eeprom_raw;
         lazy<std::vector<uint8_t>>      _fisheye_calibration_table_raw;
     };
 
@@ -237,6 +281,9 @@ namespace librealsense
 
         optional_value<uint8_t> _fisheye_device_idx;
         optional_value<uint8_t> _motion_module_device_idx;
+
+        std::vector<uint8_t> get_imu_eeprom_raw() const;
+        lazy<std::vector<uint8_t>> _imu_eeprom_raw;
 
         std::shared_ptr<mm_calib_handler>        _mm_calib;
         std::shared_ptr<lazy<ds::imu_intrinsic>> _accel_intrinsic;
