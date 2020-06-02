@@ -96,9 +96,8 @@ namespace librealsense
     std::vector<uint8_t> l500_motion::get_imu_eeprom_raw() const
     {
         // read imu calibration table on L515
-        // READ_TABLE command opcode 0x43
         // READ_TABLE 0x243 0
-        command cmd(0x43, 0x243, 0);
+        command cmd(ivcam2::READ_TABLE, 0x243, 0);
         return _hw_monitor->send(cmd);
     }
 
@@ -134,8 +133,8 @@ namespace librealsense
         try
         {
             // Writing to log to dereference underlying structure
-            // LOG_INFO("Accel Sensitivity:" << (**_accel_intrinsic).sensitivity);
-            // LOG_INFO("Gyro Sensitivity:" << (**_gyro_intrinsic).sensitivity);
+            LOG_INFO("Accel Sensitivity:" << (**_accel_intrinsic).sensitivity);
+            LOG_INFO("Gyro Sensitivity:" << (**_gyro_intrinsic).sensitivity);
 
             mm_correct_opt = std::make_shared<enable_motion_correction>(hid_ep.get(), option_range{ 0, 1, 1, 1 });
             hid_ep->register_option(RS2_OPTION_ENABLE_MOTION_CORRECTION, mm_correct_opt);
