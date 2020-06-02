@@ -200,12 +200,10 @@ namespace librealsense
         {
             imu_calib_table = *(ds::check_calib<ds::dm_v2_calibration_table>(raw_data));
 
+            // TODO - parameters will need to check with mechanical drawing
             // Bosch BMI055
             // L515 specific - BMI055 assembly transformation based on mechanical drawing (mm)
-            // Parameters will need to check with mechanical drawing, TBD
             _def_extr = { { 1, 0, 0, 0, 1, 0, 0, 0, 1 },{ -0.00552f, 0.0051f, 0.01174f } };
-            // Reference spec : Bosch BMI055
-            // Need check with mechanical drawing, TBD
             _imu_2_depth_rot = { { 1,0,0 },{ 0,1,0 },{ 0,0,1 } };
         }
         l500_imu_calib_parser(const l500_imu_calib_parser&);
@@ -225,7 +223,7 @@ namespace librealsense
                 in_intr.bias = in_intr.bias * static_cast<float>(d2r);        // The gyro bias is calculated in Deg/sec
                 break;
             default:
-                throw std::runtime_error(to_string() << "Depth Module V2 does not provide intrinsic for stream type : " << rs2_stream_to_string(stream) << " !");
+                throw std::runtime_error(to_string() << "L515 does not provide intrinsic for stream type : " << rs2_stream_to_string(stream) << " !");
             }
 
             return{ in_intr.sensitivity, in_intr.bias,{ 0,0,0 },{ 0,0,0 } };
@@ -233,8 +231,12 @@ namespace librealsense
 
         rs2_extrinsics get_extrinsic_to(rs2_stream stream)
         {
-            // TBD
+            if (!(RS2_STREAM_ACCEL == stream) && !(RS2_STREAM_GYRO == stream))
+                throw std::runtime_error(to_string() << "L515 does not support extrinsic for : " << rs2_stream_to_string(stream) << " !");
+
             rs2_extrinsics extr;
+            LOG_INFO("IMU extrinsic using CAD values");
+            extr = _def_extr;
             return extr;
         }
 
