@@ -16,6 +16,8 @@ namespace librealsense
 {
     namespace platform
     {
+        std::mutex _callback_request_mutex;
+
         uvc_streamer::uvc_streamer(uvc_streamer_context context) :
             _context(context), _action_dispatcher(10)
         {
@@ -115,6 +117,7 @@ namespace librealsense
             {
                 _action_dispatcher.invoke([this, r](dispatcher::cancellable_timer)
                 {
+                    std::lock_guard<std::mutex> rq_lock(_callback_request_mutex);
                     if(!_running)
                       return;
 

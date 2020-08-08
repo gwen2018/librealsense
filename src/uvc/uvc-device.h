@@ -36,7 +36,7 @@ namespace librealsense
         class rs_uvc_device : public uvc_device
         {
         public:
-            rs_uvc_device(const rs_usb_device& usb_device, const uvc_device_info &info, uint8_t usb_request_count = 2);
+            rs_uvc_device(const rs_usb_device& usb_device, const uvc_device_info &info, uint8_t usb_request_count = 1);
             virtual ~rs_uvc_device();
 
             virtual void probe_and_commit(stream_profile profile, frame_callback callback, int buffers = DEFAULT_V4L2_FRAME_BUFFERS) override;

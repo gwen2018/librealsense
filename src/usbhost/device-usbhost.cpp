@@ -18,6 +18,8 @@ namespace librealsense
 {
     namespace platform
     {
+        std::mutex _request_invoke_mutex;
+        std::mutex _request_mutex;
         usb_device_info generate_info(::usb_device *handle, int mi, usb_spec conn_spec, usb_class cls)
         {
             std::string name = usb_device_get_name(handle);
@@ -150,6 +152,7 @@ namespace librealsense
 
         usb_status usb_device_usbhost::submit_request(const rs_usb_request& request)
         {
+            std::lock_guard<std::mutex> rq_lock(_request_mutex);
             auto nr = reinterpret_cast<::usb_request*>(request->get_native_request());
             auto req = std::dynamic_pointer_cast<usb_request_usbhost>(request);
             req->set_active(true);
@@ -167,6 +170,7 @@ namespace librealsense
 
         usb_status usb_device_usbhost::cancel_request(const rs_usb_request& request)
         {
+            std::lock_guard<std::mutex> rq_lock(_request_mutex);
             auto nr = reinterpret_cast<::usb_request*>(request->get_native_request());
             auto sts = usb_request_cancel(nr);
 
@@ -183,6 +187,7 @@ namespace librealsense
         {
             _dispatcher->invoke([&](dispatcher::cancellable_timer c)
             {
+                std::lock_guard<std::mutex> rq_lock(_request_invoke_mutex);
                 auto r = usb_request_wait(get_handle(), -1);
 
                 if(r)
