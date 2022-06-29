@@ -8,6 +8,10 @@ endif()
 
 include(${_proc_rel_path}/sse/CMakeLists.txt)
 
+if(BUILD_WITH_JPEGTURBO)
+target_include_directories(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/include)
+endif()
+
 target_sources(${LRS_TARGET}
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/processing-blocks-factory.cpp"
@@ -68,3 +72,13 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/depth-decompress.h"
         "${CMAKE_CURRENT_LIST_DIR}/y411-converter.h"
 )
+
+if(BUILD_WITH_JPEGTURBO)
+link_directories(${LRS_TARGET} ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib)
+
+if(WIN32)
+    link_libraries(${LRS_TARGET} turbojpeg-static)
+else()
+    link_libraries(${LRS_TARGET} turbojpeg)
+endif()
+endif()

@@ -1,6 +1,19 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2019 Intel Corporation. All Rights Reserved.
 
+#include <iomanip>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstring>
+
+
+#if USE_TURBO_JPEG
+#include <turbojpeg.h>
+#endif
+
+using namespace std;
+
 #include "color-formats-converter.h"
 
 #include "option.h"
@@ -655,6 +668,16 @@ namespace librealsense
     void unpack_mjpeg(byte * const dest[], const byte * source, int width, int height, int actual_size, int input_size)
     {
         int w, h, bpp;
+
+#if USE_TURBO_JPEG
+		long unsigned int _jpegSize = actual_size;
+		int jpegSubsamp;
+
+		tjhandle _jpegDecompressor = tjInitDecompress();
+		tjDecompressHeader2(_jpegDecompressor, (unsigned char*)source, _jpegSize, &w, &h, &jpegSubsamp);
+		tjDecompress2(_jpegDecompressor, (unsigned char*)source, _jpegSize, dest[0], w, 0/*pitch*/, h, TJPF_RGB, TJFLAG_FASTDCT);
+		tjDestroy(_jpegDecompressor);
+#else
         auto uncompressed_rgb = stbi_load_from_memory(source, actual_size, &w, &h, &bpp, false);
         if (uncompressed_rgb)
         {
@@ -664,6 +687,7 @@ namespace librealsense
         }
         else
             LOG_ERROR("jpeg decode failed");
+#endif
     }
 
     /////////////////////////////
@@ -695,6 +719,22 @@ namespace librealsense
     void mjpeg_converter::process_function(byte * const dest[], const byte * source, int width, int height, int actual_size, int input_size)
     {
         unpack_mjpeg(dest, source, width, height, actual_size, input_size);
+
+#if 0
+		static int i = 0;
+		i++;
+
+		if ((i < 100) && (i % 10 == 0))
+		{
+			string fname = "f";
+			stringstream ss;
+			ss << setw(6) << setfill('0') << i;
+			fname = fname + ss.str() + ".jpg";
+			std::ofstream myfile(fname.c_str(), ios::out | ios::binary);
+			myfile.write((const char*)source, width * height);
+			myfile.close();
+		}
+#endif
     }
 
     void bgr_to_rgb::process_function(byte * const dest[], const byte * source, int width, int height, int actual_size, int input_size)

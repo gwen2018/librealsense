@@ -46,6 +46,7 @@ namespace librealsense
         const uint16_t RS416_RGB_PID        = 0x0B52; // F416 RGB
         const uint16_t RS405_PID            = 0x0B5B; // D405
         const uint16_t RS455_PID            = 0x0B5C; // D455
+        const uint16_t RS431_PID            = 0x0b4f; // D431
 
         // DS5 depth XU identifiers
         const uint8_t DS5_HWMONITOR                       = 1;
@@ -85,6 +86,7 @@ namespace librealsense
             ds::RS416_PID,
             ds::RS405_PID,
             ds::RS455_PID,
+            ds::RS431_PID,
         };
 
         static const std::set<std::uint16_t> multi_sensors_pid = {
@@ -98,13 +100,14 @@ namespace librealsense
             ds::RS435I_PID,
             ds::RS465_PID,
             ds::RS455_PID,
+            ds::RS431_PID,
         };
 
         static const std::set<std::uint16_t> hid_sensors_pid = {
             ds::RS435I_PID,
             ds::RS430I_PID,
             ds::RS465_PID,
-            ds::RS455_PID,
+            ds::RS455_PID
         };
 
         static const std::set<std::uint16_t> hid_bmi_055_pid = {
@@ -150,6 +153,7 @@ namespace librealsense
             { RS416_RGB_PID,        "Intel RealSense F416 with RGB Module"},
             { RS405_PID,            "Intel RealSense D405" },
             { RS455_PID,            "Intel RealSense D455" },
+            { RS431_PID,            "Intel RealSense D436" },
         };
 
         // DS5 fisheye XU identifiers
@@ -726,7 +730,8 @@ namespace librealsense
             {RS465_PID, "5.12.7.100" },
             {RS416_RGB_PID, "5.8.15.0" },
             {RS405_PID, "5.12.11.8" },
-            {RS455_PID, "5.12.7.100" }
+            {RS455_PID, "5.12.7.100" },
+            {RS431_PID, "5.8.15.0" }
         };
 
 

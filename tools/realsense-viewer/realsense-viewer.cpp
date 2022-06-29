@@ -160,7 +160,7 @@ bool refresh_devices(std::mutex& m,
             {
                 //Notify change
                 viewer_model.not_model->add_notification({ get_device_name(dev).first + " Disconnected\n",
-                    RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_UNKNOWN_ERROR });
+                    RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_HARDWARE_EVENT });
 
                 //Remove from devices
                 auto dev_model_itr = std::find_if(begin(device_models), end(device_models),
@@ -214,13 +214,13 @@ bool refresh_devices(std::mutex& m,
                 {
                     if (added || dev.is<playback>())
                         viewer_model.not_model->add_notification({ dev_descriptor.first + " Connected\n",
-                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_UNKNOWN_ERROR });
+                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_HARDWARE_EVENT });
                     else if (added || dev.supports(RS2_CAMERA_INFO_IP_ADDRESS))
                         viewer_model.not_model->add_notification({ dev_descriptor.first + " Connected\n",
-                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_UNKNOWN_ERROR });
+                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_HARDWARE_EVENT });
                     else
                         viewer_model.not_model->add_notification({ dev_descriptor.first + " Connected\n",
-                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_UNKNOWN_ERROR },
+                            RS2_LOG_SEVERITY_INFO, RS2_NOTIFICATION_CATEGORY_HARDWARE_EVENT },
                             [&device_models, &viewer_model, &error_message, dev] {
                                 auto device = dev;
                                 device_models.emplace_back(

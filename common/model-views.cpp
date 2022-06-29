@@ -3988,6 +3988,9 @@ namespace rs2
 
     bool device_model::check_for_bundled_fw_update(const rs2::context &ctx, std::shared_ptr<notifications_model> not_model , bool reset_delay )
     {
+        // TODO - disable firmware update for now since d436 needs special firmware
+        return false;
+
         // LibRS can have a "bundled" FW binary downloaded during CMake. That's the version
         // "available" to us, but it may not be there (e.g., no internet connection to download
         // it). Lacking an available version, we try to let the user choose a "recommended"
