@@ -9,11 +9,11 @@ if(BUILD_EASYLOGGINGPP)
     include(${_rel_path}/easyloggingpp/CMakeLists.txt)
 endif()
 
+add_subdirectory(${_rel_path}/realsense-file)
+
 if(BUILD_WITH_JPEGTURBO)
 include(${_rel_path}/libjpeg-turbo/CMakeLists.txt)
 endif()
-
-add_subdirectory(${_rel_path}/realsense-file)
 
 if(BUILD_NETWORK_DEVICE)
 

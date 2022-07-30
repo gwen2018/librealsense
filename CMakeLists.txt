@@ -11,7 +11,7 @@ include(CMake/connectivity_check.cmake)
 
 if(BUILD_SHARED_LIBS AND BUILD_WITH_JPEGTURBO)
     message(WARNING "use libjpegturbo only static link library, disabling BUILD_WITH_JPEGTURBO")
-    set(BUILD_WITH_JPEGTURBO OFF)
+#    set(BUILD_WITH_JPEGTURBO OFF)
 endif()
 
 if(BUILD_WITH_JPEGTURBO)
@@ -31,11 +31,6 @@ if(BUILD_WITH_TM2 AND NOT INTERNET_CONNECTION)
 endif()
 
 # Checking Internet connection, as DEPTH CAM needs to download the FW from amazon cloud
-if(IMPORT_DEPTH_CAM_FW AND NOT INTERNET_CONNECTION)
-    message(WARNING "No internet connection, disabling IMPORT_DEPTH_CAM_FW")
-    set(IMPORT_DEPTH_CAM_FW OFF)
-endif()
-
 if (BUILD_PC_STITCHING AND NOT BUILD_GLSL_EXTENSIONS)
     MESSAGE(STATUS "BUILD_PC_STITCHING explicitely depends on BUILD_GLSL_EXTENSIONS, set it ON")
     SET(BUILD_GLSL_EXTENSIONS ON)

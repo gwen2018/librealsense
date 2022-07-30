@@ -76,6 +76,15 @@ if(BUILD_SHARED_LIBS)
     target_sources(${LRS_TARGET} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/realsense.def")
 endif()
 
+if(BUILD_WITH_JPEGTURBO)
+
+if(WIN32)
+    target_link_libraries(${LRS_TARGET} PRIVATE turbojpeg-static)
+else()
+    target_link_libraries(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib/libturbojpeg.so)
+endif()
+endif()
+
 target_sources(${LRS_TARGET}
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/algo.cpp"

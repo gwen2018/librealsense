@@ -72,13 +72,3 @@ target_sources(${LRS_TARGET}
         "${CMAKE_CURRENT_LIST_DIR}/depth-decompress.h"
         "${CMAKE_CURRENT_LIST_DIR}/y411-converter.h"
 )
-
-if(BUILD_WITH_JPEGTURBO)
-link_directories(${LRS_TARGET} ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib)
-
-if(WIN32)
-    link_libraries(${LRS_TARGET} turbojpeg-static)
-else()
-    link_libraries(${LRS_TARGET} turbojpeg)
-endif()
-endif()
