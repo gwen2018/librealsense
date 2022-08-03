@@ -79,7 +79,7 @@ endif()
 if(BUILD_WITH_JPEGTURBO)
 
 if(WIN32)
-    target_link_libraries(${LRS_TARGET} PRIVATE turbojpeg-static)
+    target_link_libraries(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib/turbojpeg-static.lib)
 else()
     target_link_libraries(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib/libturbojpeg.so)
 endif()
