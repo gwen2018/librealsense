@@ -672,9 +672,9 @@ namespace librealsense
     {
         int w, h, bpp;
 
-#if 0
+#if 1
 		static int count = 0;
-		static int total_time = 0;
+		static double total_time = 0;
 		time_point<high_resolution_clock> beforeTime = high_resolution_clock::now();
 #endif
 
@@ -698,7 +698,7 @@ namespace librealsense
             LOG_ERROR("jpeg decode failed");
 #endif
 
-#if 0
+#if 1
         count++;
         time_point<high_resolution_clock> currentTime = high_resolution_clock::now();
         milliseconds passedTime = duration_cast<milliseconds>(currentTime - beforeTime);
@@ -706,7 +706,7 @@ namespace librealsense
 
         if (count == 150)
         {
-            int avg_time = total_time / count;
+            double avg_time = total_time / count;
             LOG_INFO("average jpeg conversion time: " << avg_time << " ms");
 
             total_time = 0;
