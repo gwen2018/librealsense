@@ -4,11 +4,9 @@
 #include <librealsense2/rs.hpp>
 #include "example-imgui.hpp"
 
-#if 1
 // 3rd party header for writing png files
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
-#endif
 
 /*
  This example introduces the concept of spatial stream alignment.
@@ -35,7 +33,7 @@ enum class direction
 };
 
 // Forward definition of UI rendering, implemented below
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images);
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft);
 
 inline std::string get_profile_description(const rs2::stream_profile& profile)
 {
@@ -76,9 +74,19 @@ int main(int argc, char * argv[]) try
         }
     }
 
+    // Filter on or off
+    bool enable_filter = false;
+
+    // Declare filters
+    rs2::temporal_filter filter;
+    filter.set_option(RS2_OPTION_FRAMES_QUEUE_SIZE, 16);
+    filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.08);
+    filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 80);
+    filter.set_option(RS2_OPTION_HOLES_FILL, 8);
+
     rs2::colorizer c;                     // Helper to colorize depth images
     texture depth_image, color_image;     // Helpers for renderig images
-    int captured_image_counter = 0;
+    int captured_image_counter = 0;       // number of images user saved by clicking the capture button
 
     // Create a pipeline to easily configure and start the camera
     rs2::pipeline pipe;
@@ -148,8 +156,17 @@ int main(int argc, char * argv[]) try
         // With the aligned frameset we proceed as usual
         auto depth = frameset.get_depth_frame();
         auto color = frameset.get_color_frame();
-        auto colorized_depth = c.colorize(depth);
 
+        rs2::frame processed_depth = depth;
+
+        if (enable_filter)
+        {
+            processed_depth = filter.process(depth);
+        }
+
+        auto colorized_depth = c.colorize(processed_depth);
+
+        // rendering
         glEnable(GL_BLEND);
         // Use the Alpha channel for blending
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -176,10 +193,9 @@ int main(int argc, char * argv[]) try
 
         // Render the UI:
         ImGui_ImplGlfw_NewFrame(1);
-        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter);
+        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter, &enable_filter);
         ImGui::Render();
 
-#if 1
         if (capture == true)
         {
             // Write images to disk
@@ -193,7 +209,6 @@ int main(int argc, char * argv[]) try
 
             captured_image_counter++;
         }
-#endif
     }
 
     return EXIT_SUCCESS;
@@ -209,7 +224,7 @@ catch (const std::exception & e)
     return EXIT_FAILURE;
 }
 
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images)
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft)
 {
     static const int flags = ImGuiWindowFlags_NoCollapse
         | ImGuiWindowFlags_NoScrollbar
@@ -239,6 +254,19 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
     }
 
     ImGui::SameLine();
+    if (ImGui::Checkbox("Align To Color", &to_color))
+    {
+        *dir = to_color ? direction::to_color : direction::to_depth;
+    }
+
+    ImGui::SameLine();
+    bool filter_on = *ft;
+    if (ImGui::Checkbox("Enable filters", &filter_on))
+    {
+        *ft = filter_on;
+    }
+
+    ImGui::SameLine();
     ImGui::SetCursorPosX(location.w /2 - 100);
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
@@ -260,13 +288,6 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
     std::stringstream msg_img;
     msg_img << "Images captured: " << num_images;
     ImGui::Text(msg_img.str().c_str());
-
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(location.w - 140);
-    if (ImGui::Checkbox("Align To Color", &to_color))
-    {
-        *dir = to_color ? direction::to_color : direction::to_depth;
-    }
 
     ImGui::End();
 }
