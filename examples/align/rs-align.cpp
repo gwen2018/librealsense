@@ -8,6 +8,12 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <thread>
+#include <chrono>
+
+using namespace std;
+using namespace std::chrono;
+
 /*
  This example introduces the concept of spatial stream alignment.
  For example usecase of alignment, please check out align-advanced and measure demos.
@@ -33,7 +39,7 @@ enum class direction
 };
 
 // Forward definition of UI rendering, implemented below
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft);
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align);
 
 inline std::string get_profile_description(const rs2::stream_profile& profile)
 {
@@ -73,6 +79,9 @@ int main(int argc, char * argv[]) try
             device_pid = dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
         }
     }
+
+    // Enable depth to color or color to depth align
+    bool enable_align = true;
 
     // Filter on or off
     bool enable_filter = false;
@@ -139,18 +148,27 @@ int main(int argc, char * argv[]) try
 
     while (app) // Application still alive?
     {
+#if 1
+		static int count = 0;
+		static int total_time = 0;
+		time_point<high_resolution_clock> beforeTime = high_resolution_clock::now();
+#endif
+
         // Using the align object, we block the application until a frameset is available
         rs2::frameset frameset = pipe.wait_for_frames();
 
-        if (dir == direction::to_depth)
+        if (enable_align)
         {
-            // Align all frames to depth viewport
-            frameset = align_to_depth.process(frameset);
-        }
-        else
-        {
-            // Align all frames to color viewport
-            frameset = align_to_color.process(frameset);
+            if (dir == direction::to_depth)
+            {
+                // Align all frames to depth viewport
+                frameset = align_to_depth.process(frameset);
+            }
+            else
+            {
+                // Align all frames to color viewport
+                frameset = align_to_color.process(frameset);
+            }
         }
 
         // With the aligned frameset we proceed as usual
@@ -165,6 +183,22 @@ int main(int argc, char * argv[]) try
         }
 
         auto colorized_depth = c.colorize(processed_depth);
+
+#if 1
+        count++;
+        time_point<high_resolution_clock> currentTime = high_resolution_clock::now();
+        milliseconds passedTime = duration_cast<milliseconds>(currentTime - beforeTime);
+        total_time += passedTime.count();
+
+        if (count == 15)
+        {
+            int avg_time = total_time / count;
+            std::cout << "average frame time: " << avg_time << " ms\n";
+
+            total_time = 0;
+            count = 0;
+        }
+#endif
 
         // rendering
         glEnable(GL_BLEND);
@@ -193,7 +227,7 @@ int main(int argc, char * argv[]) try
 
         // Render the UI:
         ImGui_ImplGlfw_NewFrame(1);
-        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter, &enable_filter);
+        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter, &enable_filter, &enable_align);
         ImGui::Render();
 
         if (capture == true)
@@ -224,7 +258,7 @@ catch (const std::exception & e)
     return EXIT_FAILURE;
 }
 
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft)
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align)
 {
     static const int flags = ImGuiWindowFlags_NoCollapse
         | ImGuiWindowFlags_NoScrollbar
@@ -244,27 +278,38 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Texture Transparancy: %.3f", *alpha);
 
-    // Render direction checkboxes:
-    bool to_depth = (*dir == direction::to_depth);
-    bool to_color = (*dir == direction::to_color);
+    // Render checkboxes:
+	bool filter_on = *ft;
+	if (ImGui::Checkbox("Enable Filters", &filter_on))
+	{
+		*ft = filter_on;
+	}
 
-    if (ImGui::Checkbox("Align To Depth", &to_depth))
-    {
-        *dir = to_depth ? direction::to_depth : direction::to_color;
-    }
+	ImGui::SameLine();
+	bool align_on = *align;
 
-    ImGui::SameLine();
-    if (ImGui::Checkbox("Align To Color", &to_color))
-    {
-        *dir = to_color ? direction::to_color : direction::to_depth;
-    }
+	if (ImGui::Checkbox("Enable Align", &align_on))
+	{
+		*align = align_on;
+	}
 
-    ImGui::SameLine();
-    bool filter_on = *ft;
-    if (ImGui::Checkbox("Enable filters", &filter_on))
-    {
-        *ft = filter_on;
-    }
+	if (align_on)
+	{
+		bool to_depth = (*dir == direction::to_depth);
+		bool to_color = (*dir == direction::to_color);
+
+		ImGui::SameLine();
+		if (ImGui::Checkbox("Align To Depth", &to_depth))
+		{
+			*dir = to_depth ? direction::to_depth : direction::to_color;
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Checkbox("Align To Color", &to_color))
+		{
+			*dir = to_color ? direction::to_color : direction::to_depth;
+		}
+	}
 
     ImGui::SameLine();
     ImGui::SetCursorPosX(location.w /2 - 100);
