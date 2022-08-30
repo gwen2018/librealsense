@@ -39,7 +39,7 @@ enum class direction
 };
 
 // Forward definition of UI rendering, implemented below
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align);
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align, bool* colorizing, bool* rendering);
 
 inline std::string get_profile_description(const rs2::stream_profile& profile)
 {
@@ -80,11 +80,12 @@ int main(int argc, char * argv[]) try
         }
     }
 
-    // Enable depth to color or color to depth align
-    bool enable_align = true;
+    // options
+    bool enable_filter = false;      // Filter on or off
+    bool enable_align = true;        // Enable depth to color or color to depth align
+    bool enable_colorizer = true;    // Enable depth colorizer
+    bool enable_rendering = true;    // Rendering depth and RGB images
 
-    // Filter on or off
-    bool enable_filter = false;
 
     // Declare filters
     rs2::temporal_filter filter;
@@ -105,7 +106,7 @@ int main(int argc, char * argv[]) try
 
     if (device_pid == "0B4F")  // D436
     {
-        cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 15);
+        cfg.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 15);
         //	cfg.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 15);
         //	cfg.enable_stream(RS2_STREAM_COLOR, 2048, 1536, RS2_FORMAT_RGB8, 15);
         cfg.enable_stream(RS2_STREAM_COLOR, 4160, 3120, RS2_FORMAT_RGB8, 15);
@@ -182,7 +183,10 @@ int main(int argc, char * argv[]) try
             processed_depth = filter.process(depth);
         }
 
-        auto colorized_depth = c.colorize(processed_depth);
+        auto colorized_depth = processed_depth;
+
+        if (enable_colorizer)
+            colorized_depth = c.colorize(processed_depth);
 
 #if 1
         count++;
@@ -205,21 +209,26 @@ int main(int argc, char * argv[]) try
         // Use the Alpha channel for blending
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        if (dir == direction::to_depth)
+        if (enable_rendering)
         {
-            // When aligning to depth, first render depth image
-            // and then overlay color on top with transparancy
-            depth_image.render(colorized_depth, { 0, 0, app.width(), app.height() });
-            color_image.render(color, { 0, 0, app.width(), app.height() }, alpha);
-        }
-        else
-        {
-            // When aligning to color, first render color image
-            // and then overlay depth image on top
-            color_image.render(color, { 0, 0, app.width(), app.height() });
-            depth_image.render(colorized_depth, { 0, 0, app.width(), app.height() }, 1 - alpha);
-        }
+            if (dir == direction::to_depth)
+            {
+                // When aligning to depth, first render depth image
+                // and then overlay color on top with transparancy
+                if (enable_colorizer)
+                    depth_image.render(colorized_depth, { 0, 0, app.width(), app.height() });
 
+                color_image.render(color, { 0, 0, app.width(), app.height() }, alpha);
+            }
+            else
+            {
+                // When aligning to color, first render color image
+                // and then overlay depth image on top
+                color_image.render(color, { 0, 0, app.width(), app.height() });
+                if (enable_colorizer)
+                    depth_image.render(colorized_depth, { 0, 0, app.width(), app.height() }, 1 - alpha);
+            }
+        }
         glColor4f(1.f, 1.f, 1.f, 1.f);
         glDisable(GL_BLEND);
 
@@ -227,7 +236,7 @@ int main(int argc, char * argv[]) try
 
         // Render the UI:
         ImGui_ImplGlfw_NewFrame(1);
-        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter, &enable_filter, &enable_align);
+        render_slider({ 15.f, app.height() - 60, app.width() - 30, app.height() }, &alpha, &dir, &capture, captured_image_counter, &enable_filter, &enable_align, &enable_colorizer, &enable_rendering);
         ImGui::Render();
 
         if (capture == true)
@@ -258,7 +267,7 @@ catch (const std::exception & e)
     return EXIT_FAILURE;
 }
 
-void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align)
+void render_slider(rect location, float* alpha, direction* dir, bool* cap, int num_images, bool* ft, bool* align, bool* colorizing, bool* rendering)
 {
     static const int flags = ImGuiWindowFlags_NoCollapse
         | ImGuiWindowFlags_NoScrollbar
@@ -283,6 +292,14 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
 	if (ImGui::Checkbox("Enable Filters", &filter_on))
 	{
 		*ft = filter_on;
+	}
+
+	ImGui::SameLine();
+	bool colorizer_on = *colorizing;
+
+	if (ImGui::Checkbox("Enable Colorizer", &colorizer_on))
+	{
+		*colorizing = colorizer_on;
 	}
 
 	ImGui::SameLine();
@@ -333,6 +350,15 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
     std::stringstream msg_img;
     msg_img << "Images captured: " << num_images;
     ImGui::Text(msg_img.str().c_str());
+
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(location.w - 150);
+	bool rendering_on = *rendering;
+
+    if (ImGui::Checkbox("Enable Rendering", &rendering_on))
+    {
+        *rendering = rendering_on;
+    }
 
     ImGui::End();
 }
