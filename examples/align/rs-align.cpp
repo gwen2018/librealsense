@@ -329,14 +329,22 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
 	}
 
     ImGui::SameLine();
-    ImGui::SetCursorPosX(location.w /2 - 100);
+    bool rendering_on = *rendering;
+
+    if (ImGui::Checkbox("Enable Rendering", &rendering_on))
+    {
+        *rendering = rendering_on;
+    }
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(location.w - 300);
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.00f, 1.00f, 0.00f, 1.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.85f, 0.85f, 1.f));
 
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.f));
-    if (ImGui::Button("##Capture", ImVec2(200, 100)))
+    if (ImGui::Button("##Capture", ImVec2(140, 50)))
     {
         *cap = true;
     }
@@ -351,14 +359,6 @@ void render_slider(rect location, float* alpha, direction* dir, bool* cap, int n
     msg_img << "Images captured: " << num_images;
     ImGui::Text(msg_img.str().c_str());
 
-	ImGui::SameLine();
-	ImGui::SetCursorPosX(location.w - 150);
-	bool rendering_on = *rendering;
-
-    if (ImGui::Checkbox("Enable Rendering", &rendering_on))
-    {
-        *rendering = rendering_on;
-    }
 
     ImGui::End();
 }
