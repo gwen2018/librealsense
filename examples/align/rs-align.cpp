@@ -94,6 +94,7 @@ int main(int argc, char * argv[]) try
     filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, 80);
     filter.set_option(RS2_OPTION_HOLES_FILL, 8);
 
+    rs2::rates_printer printer;           // print stream fps
     rs2::colorizer c;                     // Helper to colorize depth images
     texture depth_image, color_image;     // Helpers for renderig images
     int captured_image_counter = 0;       // number of images user saved by clicking the capture button
@@ -156,7 +157,7 @@ int main(int argc, char * argv[]) try
 #endif
 
         // Using the align object, we block the application until a frameset is available
-        rs2::frameset frameset = pipe.wait_for_frames();
+        rs2::frameset frameset = pipe.wait_for_frames().apply_filter(printer);
 
         if (enable_align)
         {
@@ -183,7 +184,7 @@ int main(int argc, char * argv[]) try
             processed_depth = filter.process(depth);
         }
 
-        auto colorized_depth = processed_depth;
+        rs2::video_frame colorized_depth = processed_depth;
 
         if (enable_colorizer)
             colorized_depth = c.colorize(processed_depth);
@@ -245,6 +246,13 @@ int main(int argc, char * argv[]) try
             std::stringstream depth_png_file;
             depth_png_file << "rs-align-" << captured_image_counter << "-depth.png";
             stbi_write_png(depth_png_file.str().c_str(), depth.get_width(), depth.get_height(), depth.get_bytes_per_pixel(), depth.get_data(), depth.get_stride_in_bytes());
+
+            if (enable_colorizer)
+            {
+                std::stringstream colorized_depth_png_file;
+                colorized_depth_png_file << "rs-align-" << captured_image_counter << "-depth-colorized.png";
+                stbi_write_png(colorized_depth_png_file.str().c_str(), colorized_depth.get_width(), colorized_depth.get_height(), colorized_depth.get_bytes_per_pixel(), colorized_depth.get_data(), colorized_depth.get_stride_in_bytes());
+            }
 
             std::stringstream color_png_file;
             color_png_file << "rs-align-" << captured_image_counter << "-color.png";
