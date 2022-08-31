@@ -164,30 +164,32 @@ int main(int argc, char * argv[]) try
             if (dir == direction::to_depth)
             {
                 // Align all frames to depth viewport
-                frameset = align_to_depth.process(frameset);
+                frameset = frameset.apply_filter(align_to_depth);
             }
             else
             {
                 // Align all frames to color viewport
-                frameset = align_to_color.process(frameset);
+                frameset = frameset.apply_filter(align_to_color);
             }
+        }
+
+        if (enable_filter)
+        {
+            frameset = frameset.apply_filter(filter);
+        }
+
+        if (enable_colorizer)
+        {
+            frameset = frameset.apply_filter(c);
         }
 
         // With the aligned frameset we proceed as usual
         auto depth = frameset.get_depth_frame();
         auto color = frameset.get_color_frame();
 
-        rs2::frame processed_depth = depth;
-
-        if (enable_filter)
-        {
-            processed_depth = filter.process(depth);
-        }
-
-        rs2::video_frame colorized_depth = processed_depth;
-
+        rs2::video_frame colorized_depth = depth;
         if (enable_colorizer)
-            colorized_depth = c.colorize(processed_depth);
+            colorized_depth = frameset.first(RS2_STREAM_DEPTH, RS2_FORMAT_RGB8);
 
 #if 1
         count++;
