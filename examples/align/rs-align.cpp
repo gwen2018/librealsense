@@ -3,11 +3,14 @@
 
 #include <librealsense2/rs.hpp>
 #include "example-imgui.hpp"
+#include "rs-cmdline.h"
 
 // 3rd party header for writing png files
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <iostream>
+#include <iomanip>
 #include <thread>
 #include <chrono>
 
@@ -54,38 +57,140 @@ inline std::string get_profile_description(const rs2::stream_profile& profile)
     return ss.str().c_str();
 }
 
+
+struct Options
+{
+    bool bShowHelp{ false };
+    bool bShowCameraList{ false };
+
+    string deviceSN{};
+
+    bool ParseCmdOptions(int argc, char * argv[], string& HelpMessage)
+    {
+        // Parse command line options
+        CommandLine cl(argc, argv);
+
+        cl.addOption(bShowHelp, "--help", "-?", "display list of command line options");
+        cl.addOption(bShowCameraList, "--list", "-l", "display list of connected cameras");
+        cl.addOption(deviceSN, "device serial number", "--sn", "-sn", "if multiple cameras connected to the current system, choose one of the cameras");
+
+        int invalidoptions = cl.checkAllArgsUsed();
+        HelpMessage = cl.getHelpMessage();
+
+        // -1: error, 0: success
+        return (invalidoptions == -1) ? false : true;
+    }
+};
+
+void print_usage(char * execmd)
+{
+    cout << endl;
+    cout << "Usages:" << endl;
+    cout << "Example #1: list connected cameras" << endl;
+    cout << "    " << execmd << " -l " << endl;
+    cout << endl;
+    cout << "Example #2: launch selected camera by serial number" << endl;
+    cout << "    " << execmd << " -sn 912112071102" << endl;
+    cout << endl;
+}
+
+struct camera_info
+{
+    std::string name;
+    std::string serial;
+    std::string fw_ver;
+    std::string pid;
+    std::string usb_type;
+    std::vector<rs2::stream_profile> profiles;
+};
+
+
 int main(int argc, char * argv[]) try
 {
+    Options CmdLineOptions;
+    string HelpMessage;
+
+    bool optionsOK = CmdLineOptions.ParseCmdOptions(argc, argv, HelpMessage);
+
+    if (!optionsOK || CmdLineOptions.bShowHelp)
+    {
+        cout << HelpMessage << endl;
+        print_usage(argv[0]);
+        return optionsOK ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+
+    std::vector<camera_info> cameras;
+
     rs2::context ctx;
     auto devs = ctx.query_devices();
 
-    if (devs.size() < 1)
-        return EXIT_SUCCESS;
-
-    std::string serial;
-    if (!device_with_streams({ RS2_STREAM_COLOR,RS2_STREAM_DEPTH }, serial))
-        return EXIT_SUCCESS;
-
-    std::string device_name = "";
-    std::string device_pid = "";
-
     for (rs2::device dev : devs)
     {
-        std::string device_sn = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+        camera_info cam;
 
-        if (device_sn == serial)
+        cam.serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+        cam.name = dev.get_info(RS2_CAMERA_INFO_NAME);
+        cam.pid = dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
+        cam.fw_ver = dev.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION);
+        cam.usb_type = dev.get_info(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR);
+
+        cameras.push_back(cam);
+    }
+
+    if (CmdLineOptions.bShowCameraList)
+    {
+        cout << left << setw(30) << "Device Name" << setw(20) << "Serial Number" << setw(20) << "Firmware Version" << setw(20) << "USB Type" << endl;
+
+        for (auto cam : cameras)
         {
-            device_name = dev.get_info(RS2_CAMERA_INFO_NAME);
-            device_pid = dev.get_info(RS2_CAMERA_INFO_PRODUCT_ID);
+            cout << left << setw(30) << cam.name << setw(20) << cam.serial << setw(20) << cam.fw_ver << setw(20) << cam.usb_type << endl;
+        }
+
+        return EXIT_SUCCESS;
+    }
+
+    if (devs.size() < 1)
+    {
+        cout << "No device detected. Is it plugged in?" << endl;
+        return EXIT_SUCCESS;
+    }
+
+//    std::string serial;
+//    if (!device_with_streams({ RS2_STREAM_COLOR,RS2_STREAM_DEPTH }, serial))
+//        return EXIT_SUCCESS;
+
+    camera_info target_cam;
+
+    if (!CmdLineOptions.deviceSN.empty())
+    {
+        for (auto cam : cameras)
+        {
+            if (CmdLineOptions.deviceSN == cam.serial)
+            {
+                target_cam = cam;
+            }
         }
     }
+    else
+    {
+        target_cam = cameras[0];
+    }
+
+    if (target_cam.serial.empty())
+    {
+        cout << "Cannot find camera. Please check serial number specified." << endl;
+        return EXIT_FAILURE;
+    }
+
+    std::string device_sn = target_cam.serial;
+    std::string device_name = target_cam.name;
+    std::string device_pid = target_cam.pid;
 
     // options
     bool enable_filter = false;      // Filter on or off
     bool enable_align = true;        // Enable depth to color or color to depth align
     bool enable_colorizer = true;    // Enable depth colorizer
     bool enable_rendering = true;    // Rendering depth and RGB images
-
 
     // Declare filters
     rs2::temporal_filter filter;
@@ -102,8 +207,8 @@ int main(int argc, char * argv[]) try
     // Create a pipeline to easily configure and start the camera
     rs2::pipeline pipe;
     rs2::config cfg;
-    if (!serial.empty())
-        cfg.enable_device(serial);
+    if (!device_sn.empty())
+        cfg.enable_device(device_sn);
 
     if (device_pid == "0B4F")  // D436
     {
@@ -133,7 +238,7 @@ int main(int argc, char * argv[]) try
     }
 
     // Create and initialize GUI related objects
-    std::string title = "RealSense Align Example - " + device_name + " " + sp_description;
+    std::string title = "RealSense Align Example - " + device_sn + " " + device_name + " " + sp_description;
 
     window app(1920, 1080, title.c_str()); // Simple window handling
     ImGui_ImplGlfw_Init(app, false);      // ImGui library intializition
