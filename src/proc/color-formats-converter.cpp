@@ -749,14 +749,14 @@ namespace librealsense
 		static int i = 0;
 		i++;
 
-		if ((i < 100) && (i % 10 == 0))
+		if ((i < 100) && (i % 30 == 0))
 		{
 			string fname = "f";
 			stringstream ss;
 			ss << setw(6) << setfill('0') << i;
 			fname = fname + ss.str() + ".jpg";
 			std::ofstream myfile(fname.c_str(), ios::out | ios::binary);
-			myfile.write((const char*)source, width * height);
+			myfile.write((const char*)source, input_size);
 			myfile.close();
 		}
 #endif
