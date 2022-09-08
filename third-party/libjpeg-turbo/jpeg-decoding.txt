@@ -1,0 +1,56 @@
+
+1. RealSense SDK use libjpeg-turbo to decode MJPEG frames from D436. libjpeg-turbo is downloaded and compiled during SDK compilation as 3rd party library.
+    a) Please note the Please note the new BUILD_WITH_JPEGTURBO option, it should be turned on to utilize fast JPEG decoding since the new camera hardware output high resolution images in MJPEG format.
+    b) On Intel platform, before compile, nasm compiler should be installed and make sure it's in the PATH. This is to enable best performance. For example, on Ubuntu 20.04,
+       sudo apt-get install nasm
+
+2. After SDK build completion, check libjpeg-turbo is compiled and installed correctly.
+   a) libjpeg-turbo library should be generated under ~/librealsense/build/libjpeg-turbo as part of build process.
+      NUC12DCMv9:~/librealsense/build/libjpeg-turbo$ ls -l bin
+          cjpeg
+          djpeg
+          jpegtran
+          rdjpgcom
+          tjbench
+          wrjpgcom
+
+      NUC12DCMv9:~/librealsense/build/libjpeg-turbo$ ls -l lib
+          libjpeg.a
+          libjpeg.so -> libjpeg.so.62
+          libjpeg.so.62 -> libjpeg.so.62.3.0
+          libjpeg.so.62.3.0
+          libturbojpeg.a
+          libturbojpeg.so -> libturbojpeg.so.0
+          libturbojpeg.so.0 -> libturbojpeg.so.0.2.0
+          libturbojpeg.so.0.2.0
+
+    b) libturbojpeg library files should be updated to /usr/local/lib. If not, please make the libturbojpeg.so* files in /usr/local/lib in sync with build/libjpeg-turbo folder.
+       NUC12DCMv9:~/librealsense/build/libjpeg-turbo$ ls -li /usr/local/lib/
+       libturbojpeg.so -> libturbojpeg.so.0
+       libturbojpeg.so.0 -> libturbojpeg.so.0.2.0
+       libturbojpeg.so.0.2.0
+
+3. Run tjbench to check JPEG decoding benchmark performance
+   cd ~/librealsense/build/libjpeg-turbo/bin
+   ./tjbench ~/librealsense/third-party/libjpeg-turbo/test.jpg -fastdct -fastupsample -rgb -warmup 5 -benchtime 30 -nowrite
+     Using fastest DCT/IDCT algorithm
+     Using fast upsampling code
+     Warmup time = 5.0 seconds
+     >>>>>  JPEG 4:2:2 --> RGB (Top-down)  <<<<<
+     Image size: 4160 x 3120
+     Decompress    --> Frame rate:         33.477898 fps
+                       Throughput:         434.516334 Megapixels/sec
+
+
+4. Check actual decoding performance in SDK
+   export LRS_LOG_LEVEL=INFO
+   run rs-align with depth alignement and filter but turn off colorizer and rendering
+
+   A log file should appear in the folder, for example, 2022-09-08-10_04_03.log
+   Check jpeg conversion performance matric in the log file, for example
+   08/09 10:04:14,119 INFO [140293339174464] (color-formats-converter.cpp:710) average jpeg conversion time: 29.280000 ms
+   08/09 10:04:24,118 INFO [140293339174464] (color-formats-converter.cpp:710) average jpeg conversion time: 30.460000 ms
+
+5. Performance from step 3 and 4 should be close
+
+

@@ -684,7 +684,7 @@ namespace librealsense
 
 		tjhandle _jpegDecompressor = tjInitDecompress();
 		tjDecompressHeader2(_jpegDecompressor, (unsigned char*)source, _jpegSize, &w, &h, &jpegSubsamp);
-		tjDecompress2(_jpegDecompressor, (unsigned char*)source, _jpegSize, dest[0], w, 0/*pitch*/, h, TJPF_RGB, TJFLAG_FASTDCT);
+		tjDecompress2(_jpegDecompressor, (unsigned char*)source, _jpegSize, dest[0], w, 0/*pitch*/, h, TJPF_RGB, TJFLAG_FASTDCT | TJ_FASTUPSAMPLE);
 		tjDestroy(_jpegDecompressor);
 #else
         auto uncompressed_rgb = stbi_load_from_memory(source, actual_size, &w, &h, &bpp, false);
