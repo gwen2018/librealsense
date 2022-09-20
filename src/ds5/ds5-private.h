@@ -18,6 +18,8 @@
 #define LOG_DEBUG_THERMAL_LOOP(...)
 #endif //DEBUG_THERMAL_LOOP
 
+#define ENABLE_D455_IMU 1
+
 namespace librealsense
 {
     namespace ds
@@ -106,8 +108,10 @@ namespace librealsense
         static const std::set<std::uint16_t> hid_sensors_pid = {
             ds::RS435I_PID,
             ds::RS430I_PID,
+#if ENABLE_D455_IMU
             ds::RS465_PID,
             ds::RS455_PID
+#endif
         };
 
         static const std::set<std::uint16_t> hid_bmi_055_pid = {

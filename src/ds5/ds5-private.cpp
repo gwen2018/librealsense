@@ -295,14 +295,20 @@ namespace librealsense
                     case RS430_MM_PID:
                     case RS420_MM_PID:
                     case RS435I_PID:
+#if ENABLE_D455_IMU
+                    case RS465_PID:
                     case RS455_PID:
+#endif
                         found = (result.mi == 6);
                         break;
                     case RS415_PID:
                     case RS416_RGB_PID:
                     case RS435_RGB_PID:
-                    case RS465_PID:
                     case RS431_PID:
+#if (ENABLE_D455_IMU == 0)
+                    case RS465_PID:
+                    case RS455_PID:
+#endif
                         found = (result.mi == 5);
                         break;
                     default:
