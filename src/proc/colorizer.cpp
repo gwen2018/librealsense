@@ -150,9 +150,9 @@ namespace librealsense
 
         _maps = { &jet, &classic, &grayscale, &inv_grayscale, &biomes, &cold, &warm, &quantized, &pattern, &hue };
 
-        auto min_opt = std::make_shared< ptr_option< float > >( 0.f, 16.f, 0.1f, 0.f, &_min, "Min range in meters" );
+        auto min_opt = std::make_shared< ptr_option< float > >( 0.f, 100.f, 0.1f, 0.f, &_min, "Min range in meters" );
 
-        auto max_opt = std::make_shared< ptr_option< float > >( 0.f, 16.f, 0.1f, 6.f, &_max, "Max range in meters" );
+        auto max_opt = std::make_shared< ptr_option< float > >( 0.f, 100.f, 0.1f, 6.f, &_max, "Max range in meters" );
 
         auto max_dist_opt = std::make_shared< max_distance_option >( max_opt, min_opt );
 

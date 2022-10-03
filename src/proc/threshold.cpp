@@ -18,9 +18,9 @@ namespace librealsense
         _stream_filter.format = RS2_FORMAT_Z16;
         _stream_filter.stream = RS2_STREAM_DEPTH;
         
-        auto min_opt = std::make_shared<ptr_option<float>>(0.f, 16.f, 0.1f, 0.1f, &_min, "Min range in meters");
+        auto min_opt = std::make_shared<ptr_option<float>>(0.f, 100.f, 0.1f, 0.1f, &_min, "Min range in meters");
 
-        auto max_opt = std::make_shared<ptr_option<float>>(0.f, 16.f, 0.1f, 4.f, &_max, "Max range in meters");
+        auto max_opt = std::make_shared<ptr_option<float>>(0.f, 100.f, 0.1f, 4.f, &_max, "Max range in meters");
 
         register_option(RS2_OPTION_MAX_DISTANCE,
             std::make_shared<max_distance_option>(
