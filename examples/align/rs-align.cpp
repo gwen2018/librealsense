@@ -222,6 +222,11 @@ int main(int argc, char * argv[]) try
         cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 15);
         cfg.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 15);
     }
+    else if (device_pid == "0B4D")  // D465
+    {
+        cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 960, RS2_FORMAT_Z16, 15);
+        cfg.enable_stream(RS2_STREAM_COLOR, 4160, 3120, RS2_FORMAT_RGB8, 15);
+    }
     else
     {
         cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 15);
