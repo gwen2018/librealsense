@@ -10,11 +10,11 @@
 ##    demonstrate align depth to color with the precaptured images in software device              ##
 ##                                                                                                 ##
 ##  Steps                                                                                          ##
-##    1) stream realsense camera with depth 640x480@30fps and color 1280x720@30fps                 ##
+##    1) stream realsense camera with depth 640x480@30fps and color 640x480@30fps                  ##
 ##    2) capture camera depth and color intrinsics and extrinsics                                  ##
 ##    3) capture depth and color images and save into files in npy format                          ##
 ##    4) construct software device from the saved intrinsics, extrinsics, depth and color images   ##
-##    5) align the precaptured depth image to to color image                                       ##
+##    5) align the precaptured depth image to color image                                          ##
 ##                                                                                                 ##
 ##  Usage                                                                                          ##
 ##    1) Attach realsense camera like D435                                                         ##
@@ -158,13 +158,13 @@ depth_intrinsics.fy = camera_depth_intrinsics.fy
 depth_intrinsics.coeffs = camera_depth_intrinsics.coeffs       ## [0.0, 0.0, 0.0, 0.0, 0.0]
 depth_intrinsics.model = camera_depth_intrinsics.model         ## rs.pyrealsense2.distortion.brown_conrady
 
-#depth stream
+# depth stream
 depth_stream = rs.video_stream()
 depth_stream.type = rs.stream.depth
 depth_stream.width = depth_intrinsics.width
 depth_stream.height = depth_intrinsics.height
 depth_stream.fps = fps
-depth_stream.bpp = 2                              # depth z16 2 bytes per pixel
+depth_stream.bpp = 2                                           ## depth z16 2 bytes per pixel
 depth_stream.fmt = rs.format.z16
 depth_stream.intrinsics = depth_intrinsics
 depth_stream.index = 0
@@ -194,7 +194,7 @@ color_stream.type = rs.stream.color
 color_stream.width = color_intrinsics.width
 color_stream.height = color_intrinsics.height
 color_stream.fps = fps
-color_stream.bpp = 3                                # color stream rgb8 3 bytes per pixel in this example
+color_stream.bpp = 3                                           ## color stream rgb8 3 bytes per pixel in this example
 color_stream.fmt = rs.format.rgb8
 color_stream.intrinsics = color_intrinsics
 color_stream.index = 0
