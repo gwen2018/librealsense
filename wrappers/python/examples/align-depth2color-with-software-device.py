@@ -18,7 +18,7 @@
 ##                                                                                                 ##
 ##  Usage                                                                                          ##
 ##    1) Attach realsense camera like D435                                                         ##
-##    2) python align-with-software-device-example.py                                              ##
+##    2) python align-depth2color-with-software-device.py                                          ##
 ##    3) demo pauses at frameset 15, press ENTER or SPACEBAR key anytime for extra pauses          ##
 ##                                                                                                 ##
 #####################################################################################################
