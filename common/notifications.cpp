@@ -496,6 +496,7 @@ namespace rs2
                 m->enable_dismiss = false;
             }
 
+            if (n.get_category() != RS2_NOTIFICATION_CATEGORY_HARDWARE_ERROR && n.get_category() != RS2_NOTIFICATION_CATEGORY_UNKNOWN_ERROR && n.get_category() != RS2_NOTIFICATION_CATEGORY_FRAME_CORRUPTED)
             pending_notifications.push_back(m);
 
             if (pending_notifications.size() > (size_t)MAX_SIZE)
@@ -523,6 +524,7 @@ namespace rs2
             model->index = index++;
             model->timestamp = duration<double, milli>(system_clock::now().time_since_epoch()).count();
 
+            if (model->severity != RS2_LOG_SEVERITY_ERROR)
             pending_notifications.push_back(model);
 
             if (pending_notifications.size() > (size_t)MAX_SIZE)

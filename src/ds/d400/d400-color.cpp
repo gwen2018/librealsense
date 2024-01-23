@@ -76,7 +76,7 @@ namespace librealsense
                 timestamp_reader_from_metadata = new ds_timestamp_reader_from_metadata(std::move(d400_timestamp_reader_backup));
             else
                 timestamp_reader_from_metadata = new ds_timestamp_reader_from_metadata_mipi_color(std::move(d400_timestamp_reader_backup));
-            
+
             std::unique_ptr<frame_timestamp_reader> ds_timestamp_reader_metadata(timestamp_reader_from_metadata);
 
             auto enable_global_time_option = std::shared_ptr<global_time_option>(new global_time_option());
@@ -133,7 +133,7 @@ namespace librealsense
     {
         auto& color_ep = get_color_sensor();
         auto raw_color_ep = get_raw_color_sensor();
-    
+
         _ds_color_common = std::make_shared<ds_color_common>(raw_color_ep, color_ep, _fw_version, _hw_monitor, this);
 
         register_color_features();
@@ -146,7 +146,7 @@ namespace librealsense
         {
             register_metadata_mipi(color_ep);
         }
-        register_processing_blocks();       
+        register_processing_blocks();
     }
 
     void d400_color::register_options()
@@ -242,8 +242,8 @@ namespace librealsense
                 color_ep.register_processing_block(processing_block_factory::create_pbf_vector<yuy2_converter>(RS2_FORMAT_YUYV, map_supported_color_formats(RS2_FORMAT_YUYV), RS2_STREAM_COLOR));
             }
         }
-        
-        if (_pid == ds::RS465_PID)
+
+        if (_pid == ds::RS465_PID || _pid == ds::RS438_PID)
         {
             color_ep.register_processing_block({ {RS2_FORMAT_MJPEG} }, { {RS2_FORMAT_RGB8, RS2_STREAM_COLOR} }, []() { return std::make_shared<mjpeg_converter>(RS2_FORMAT_RGB8); });
             color_ep.register_processing_block(processing_block_factory::create_id_pbf(RS2_FORMAT_MJPEG, RS2_STREAM_COLOR));
@@ -340,7 +340,7 @@ namespace librealsense
                                                              md_mipi_rgb_control_attributes::crc_attribute,
                                                              md_prop_offset));
     }
-    
+
     void d400_color::register_stream_to_extrinsic_group(const stream_interface& stream, uint32_t group_index)
     {
         device::register_stream_to_extrinsic_group(stream, group_index);

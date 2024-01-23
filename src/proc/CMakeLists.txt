@@ -8,6 +8,10 @@ endif()
 
 include(${_proc_rel_path}/sse/CMakeLists.txt)
 
+if(BUILD_WITH_JPEGTURBO)
+target_include_directories(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/include)
+endif()
+
 target_sources(${LRS_TARGET}
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/processing-blocks-factory.cpp"

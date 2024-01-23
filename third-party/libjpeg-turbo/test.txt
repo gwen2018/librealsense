@@ -1,0 +1,17 @@
+https://www.imgonline.com.ua/eng/determine-jpeg-quality.php
+
+JPEG quality (compression) level: 93
+This is baseline JPEG!
+
+File Size	5.9 MB
+File Type	JPEG
+MIME Type	image/jpeg
+Image Width	4160
+Image Height	3120
+Encoding Process	Baseline DCT, Huffman coding
+Bits Per Sample	8
+Color Components	3
+Y Cb Cr Sub Sampling	YCbCr4:2:2 (2 1)
+Composite
+Image Size	4160x3120
+Megapixels	13.0

@@ -11,6 +11,16 @@ include_directories(${REPO_ROOT})
 
 include(CMake/lrs_options.cmake)
 include(CMake/connectivity_check.cmake)
+
+if(BUILD_SHARED_LIBS AND BUILD_WITH_JPEGTURBO)
+#    message(WARNING "use libjpegturbo only static link library, disabling BUILD_WITH_JPEGTURBO")
+#    set(BUILD_WITH_JPEGTURBO OFF)
+endif()
+
+if(BUILD_WITH_JPEGTURBO)
+add_definitions(-DUSE_TURBO_JPEG)
+endif()
+
 #Deprecation message, should be removed in future releases
 if(${FORCE_LIBUVC} OR ${FORCE_WINUSB_UVC} OR ${ANDROID_USB_HOST_UVC})
     MESSAGE(DEPRECATION "FORCE_LIBUVC, FORCE_WINUSB_UVC and ANDROID_USB_HOST_UVC are deprecated, use FORCE_RSUSB_BACKEND instead")

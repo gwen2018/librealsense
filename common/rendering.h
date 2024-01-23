@@ -452,6 +452,7 @@ namespace rs2
             // When frame is a GPU frame
             // we don't need to access pixels, keep data NULL
             auto data = !frame.is<gl::gpu_frame>() ? frame.get_data() : nullptr;
+            int data_size = frame.get_data_size();
 
             auto rendered_frame = frame;
             auto image = frame.as<video_frame>();
@@ -677,6 +678,12 @@ namespace rs2
                 //    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width / 2, height / 2, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb.data());
                 //}
                 //break;
+
+                case RS2_FORMAT_MJPEG:
+                    memset((void*)data, 0, data_size);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, data_size/width, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+                    break;
+
                 default:
                 {
                     memset((void*)data, 0, height*width);

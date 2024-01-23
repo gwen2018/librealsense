@@ -1,5 +1,20 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2019 Intel Corporation. All Rights Reserved.
+#include <iomanip>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstring>
+
+#include <thread>
+#include <chrono>
+
+#if USE_TURBO_JPEG
+#include <turbojpeg.h>
+#endif
+
+using namespace std;
+using namespace std::chrono;
 
 #include "color-formats-converter.h"
 
@@ -1068,13 +1083,48 @@ namespace librealsense
         }
     }
 
+#define DEBUG_JPEG_PERF 0
+
     /////////////////////////////
     // MJPEG unpacking routines //
     /////////////////////////////
-    void unpack_mjpeg( uint8_t * const dest[], const uint8_t * source, int width, int height, int actual_size, int input_size)
+    void unpack_mjpeg(uint8_t * const dest[], const uint8_t * source, int width, int height, int actual_size, int jpeg_size)
     {
         int w, h, bpp;
-        auto uncompressed_rgb = stbi_load_from_memory(source, actual_size, &w, &h, &bpp, false);
+
+#if DEBUG_JPEG_PERF
+        static int count = 0;
+        static double total_time = 0;
+        time_point<high_resolution_clock> beforeTime = high_resolution_clock::now();
+#endif
+
+#if USE_TURBO_JPEG
+        unsigned long jpegSize = jpeg_size;
+        int jpegSubsamp;
+
+        tjhandle jpegDecompressor = tjInitDecompress();
+        int ret = tjDecompressHeader2(jpegDecompressor, (unsigned char*)source, jpegSize, &w, &h, &jpegSubsamp);
+
+        if (ret)
+        {
+            tjDestroy(jpegDecompressor);
+            return;
+        }
+
+        int pixelFormat = TJPF_RGB;
+        int pitch = width * tjPixelSize[pixelFormat];
+
+        ret = tjDecompress2(jpegDecompressor, (unsigned char*)source, jpegSize, dest[0], w, pitch, h, pixelFormat, TJFLAG_FASTDCT | TJ_FASTUPSAMPLE);
+
+        if (ret)
+        {
+           tjDestroy(jpegDecompressor);
+            return;
+        }
+
+        tjDestroy(jpegDecompressor);
+#else
+        auto uncompressed_rgb = stbi_load_from_memory(source, jpeg_size, &w, &h, &bpp, false);
         if (uncompressed_rgb)
         {
             auto uncompressed_size = w * h * bpp;
@@ -1083,6 +1133,24 @@ namespace librealsense
         }
         else
             LOG_ERROR("jpeg decode failed");
+#endif
+
+#if DEBUG_JPEG_PERF
+        count++;
+        time_point<high_resolution_clock> currentTime = high_resolution_clock::now();
+        milliseconds passedTime = duration_cast<milliseconds>(currentTime - beforeTime);
+        total_time += passedTime.count();
+
+        if (count == 150)
+        {
+            double avg_time = total_time / count;
+            LOG_INFO("average jpeg conversion time: " << avg_time << " ms");
+
+            total_time = 0;
+            count = 0;
+        }
+#endif
+
     }
 
     /////////////////////////////
@@ -1114,6 +1182,22 @@ namespace librealsense
     void mjpeg_converter::process_function( uint8_t * const dest[], const uint8_t * source, int width, int height, int actual_size, int input_size)
     {
         unpack_mjpeg(dest, source, width, height, actual_size, input_size);
+
+#if 0
+        static int i = 0;
+        i++;
+
+        if ((i < 100) && (i % 30 == 0))
+        {
+            string fname = "f";
+            stringstream ss;
+            ss << setw(6) << setfill('0') << i;
+            fname = fname + ss.str() + ".jpg";
+            std::ofstream myfile(fname.c_str(), ios::out | ios::binary);
+            myfile.write((const char*)source, input_size);
+            myfile.close();
+        }
+#endif
     }
 
     void bgr_to_rgb::process_function( uint8_t * const dest[], const uint8_t * source, int width, int height, int actual_size, int input_size)

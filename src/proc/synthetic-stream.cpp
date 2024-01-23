@@ -258,8 +258,7 @@ namespace librealsense
         {
             width = vf.get_width();
             height = vf.get_height();
-            if (f.supports_frame_metadata(RS2_FRAME_METADATA_RAW_FRAME_SIZE))
-                raw_size = static_cast<int>(f.get_frame_metadata(RS2_FRAME_METADATA_RAW_FRAME_SIZE));
+            raw_size = f.get_data_size();
         }
         uint8_t * planes[1];
         planes[0] = (uint8_t *)ret.get_data();

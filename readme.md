@@ -1,96 +1,134 @@
 <p align="center"><img src="doc/img/realsense.png" width="70%" /><br><br></p>
 
------------------
-[![GitHub CI](../../actions/workflows/buildsCI.yaml/badge.svg?branch=development)](../../actions/workflows/buildsCI.yaml)
+
+
+
 
 ## Overview
-**Intel® RealSense™ SDK 2.0** is a cross-platform library for Intel® RealSense™ depth cameras.
+Intel® RealSense™ SDK is a cross-platform library for Intel® RealSense™ depth cameras. This special 2.55.91 ED version enables the D438 prototype cameras which outputs MJPEG image format from the new 13M RGB sensor.
 
-> :pushpin: For other Intel® RealSense™ devices (F200, R200, LR200 and ZR300), please refer to the [latest legacy release](https://github.com/IntelRealSense/librealsense/tree/v1.12.1).
+In addition to D438 features, this version of SDK also supports same common capabilities as the regular SDK. It allows depth and color streaming, and provides intrinsic and extrinsic calibration information.
+The library also offers synthetic streams (pointcloud, depth aligned to color and vise-versa).
 
-The SDK allows depth and color streaming, and provides intrinsic and extrinsic calibration information.
-The library also offers synthetic streams (pointcloud, depth aligned to color and vise-versa), and a built-in support for [record and playback](./doc/record-and-playback.md) of streaming sessions.
-
-Developer kits containing the necessary hardware to use this library are available for purchase at [store.intelrealsense.com](https://store.intelrealsense.com/products.html).
-Information about the Intel® RealSense™ technology at [www.intelrealsense.com](https://www.intelrealsense.com/)
-
-> :open_file_folder: Don't have access to a RealSense camera? Check-out [sample data](./doc/sample-data.md)
-
-## Update on Recent Changes to the RealSense Product Line
-
-Intel has EOLed the LiDAR, Facial Authentication, and Tracking product lines. These products have been discontinued and will no longer be available for new orders.
-
-Intel WILL continue to sell and support stereo products including the following: D410, D415, D430, , D401 ,D450 modules and D415, D435, D435i, D435f, D405, D455, D457 depth cameras. We will also continue the work to support and develop our LibRealSense open source SDK.
-
-In the future, Intel and the RealSense team will focus our new development on advancing innovative technologies that better support our core businesses and IDM 2.0 strategy.
-
-## Building librealsense - Using vcpkg
-
-You can download and install librealsense using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager:
-
-    git clone https://github.com/Microsoft/vcpkg.git
-    cd vcpkg
-    ./bootstrap-vcpkg.sh
-    ./vcpkg integrate install
-    ./vcpkg install realsense2
-
-The librealsense port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
-
-## Download and Install
-* **Download** - The latest releases including the Intel RealSense SDK, Viewer and Depth Quality tools are available at: [**latest releases**](https://github.com/IntelRealSense/librealsense/releases). Please check the [**release notes**](https://github.com/IntelRealSense/librealsense/wiki/Release-Notes) for the supported platforms, new features and capabilities, known issues, how to upgrade the Firmware and more.
-
-* **Install** - You can also install or build from source the SDK (on [Linux](./doc/distribution_linux.md) \ [Windows](./doc/distribution_windows.md) \ [Mac OS](doc/installation_osx.md) \ [Android](./doc/android.md) \ [Docker](./scripts/Docker/readme.md)), connect your D400 depth camera and you are ready to start writing your first application.
-
-> **Support & Issues**: If you need product support (e.g. ask a question about / are having problems with the device), please check the [FAQ & Troubleshooting](https://github.com/IntelRealSense/librealsense/wiki/Troubleshooting-Q%26A) section.
-> If not covered there, please search our [Closed GitHub Issues](https://github.com/IntelRealSense/librealsense/issues?utf8=%E2%9C%93&q=is%3Aclosed) page,  [Community](https://communities.intel.com/community/tech/realsense) and [Support](https://www.intel.com/content/www/us/en/support/emerging-technologies/intel-realsense-technology.html) sites.
-> If you still cannot find an answer to your question, please [open a new issue](https://github.com/IntelRealSense/librealsense/issues/new).
+For details of common SDK capabilties and usages, please refer to https://github.com/IntelRealSense/librealsense/blob/master/readme.md
 
 ## What’s included in the SDK:
 | What | Description | Download link|
 | ------- | ------- | ------- |
-| **[Intel® RealSense™ Viewer](./tools/realsense-viewer)** | With this application, you can quickly access your Intel® RealSense™ Depth Camera to view the depth stream, visualize point clouds, record and playback streams, configure your camera settings, modify advanced controls, enable depth visualization and post processing  and much more. | [**Intel.RealSense.Viewer.exe**](https://github.com/IntelRealSense/librealsense/releases) |
-| **[Depth Quality Tool](./tools/depth-quality)** | This application allows you to test the camera’s depth quality, including: standard deviation from plane fit, normalized RMS – the subpixel accuracy, distance accuracy and fill rate. You should be able to easily get and interpret several of the depth quality metrics and record and save the data for offline analysis. |[**Depth.Quality.Tool.exe**](https://github.com/IntelRealSense/librealsense/releases) |
-| **[Debug Tools](./tools/)** | Device enumeration, FW logger, etc as can be seen at the tools directory | Included in [**Intel.RealSense.SDK.exe**](https://github.com/IntelRealSense/librealsense/releases)|
-| **[Code Samples](./examples)** |These simple examples demonstrate how to easily use the SDK to include code snippets that access the camera into your applications. Check some of the [**C++ examples**](./examples) including capture, pointcloud and more and basic [**C examples**](./examples/C) | Included in [**Intel.RealSense.SDK.exe**](https://github.com/IntelRealSense/librealsense/releases) |
-| **[Wrappers](https://github.com/IntelRealSense/librealsense/tree/development/wrappers)** | [Python](./wrappers/python), [C#/.NET](./wrappers/csharp) API, as well as integration with the following 3rd-party technologies: [ROS1](https://github.com/IntelRealSense/realsense-ros/tree/ros1-legacy), [ROS2](https://github.com/IntelRealSense/realsense-ros/tree/ros2-development), [LabVIEW](./wrappers/labview), [OpenCV](./wrappers/opencv), [PCL](./wrappers/pcl), [Unity](./wrappers/unity), [Matlab](./wrappers/matlab), [OpenNI](./wrappers/openni2), [UnrealEngine4](./wrappers/unrealengine4) and more to come. | |
+| **[Intel® RealSense™ Viewer](./tools/realsense-viewer)** | With this application, you can quickly access your Intel® RealSense™ Depth Camera to view the depth stream, visualize point clouds, record and playback streams, configure your camera settings, modify advanced controls, enable depth visualization and post processing  and much more. | [**realsense-viewer.exe**](https://github.com/gwen2018/librealsense/tree/d438/download) |
+| **[Depth Quality Tool](./tools/depth-quality)** | This application allows you to test the camera’s depth quality, including: standard deviation from plane fit, normalized RMS – the subpixel accuracy, distance accuracy and fill rate. You should be able to easily get and interpret several of the depth quality metrics and record and save the data for offline analysis. |[**rs-depth-quality.exe**](https://github.com/gwen2018/librealsense/tree/d438/download) |
+| **[Debug Tools](./tools/)** | Device enumeration, FW logger, etc as can be seen at the tools directory | [**Debug Tools**](https://github.com/gwen2018/librealsense/tree/d438/download)|
+| **[Code Samples](./examples)** |These simple examples demonstrate how to easily use the SDK to include code snippets that access the camera into your applications. Check some of the [**C++ examples**](./examples) including capture, pointcloud and more and basic [**C examples**](./examples/C) | [**Samples**](https://github.com/gwen2018/librealsense/tree/d438/download) |
 
 
-## Ready to Hack!
+## Example Streaming with D438
+Use Realsense Viewer to stream 848x480 Depth and 4160x3120 RGB8 format at 15 fps, for example,
+https://github.com/gwen2018/librealsense/tree/d438/download/d438-streaming-example.png
 
-Our library offers a high level API for using Intel RealSense depth cameras (in addition to lower level ones).
-The following snippet shows how to start streaming frames and extracting the depth value of a pixel:
+1) RGB sensor hardware output MJPEG format, SDK decode and convert into RGB8 for processing and rendering. RGB8 is also the output to ROS for publishing.
+2) MJPEG format in viewer streaming only, no rendering, so black screen but can show meta data including frame rates.
+3) RAW format in viewer streaming only, no rendering, so black screen but can show meta data including frame rates.
+4) Full list of supported formats [**D438 supported formats**](https://github.com/gwen2018/librealsense/tree/d438/download/d438-supported-formats.txt)
 
-```cpp
-// Create a Pipeline - this serves as a top-level API for streaming and processing frames
-rs2::pipeline p;
 
-// Configure and start the pipeline
-p.start();
-
-while (true)
-{
-    // Block program until frames arrive
-    rs2::frameset frames = p.wait_for_frames();
-
-    // Try to get a frame of a depth image
-    rs2::depth_frame depth = frames.get_depth_frame();
-
-    // Get the depth frame's dimensions
-    float width = depth.get_width();
-    float height = depth.get_height();
-
-    // Query the distance from the camera to the object in the center of the image
-    float dist_to_center = depth.get_distance(width / 2, height / 2);
-
-    // Print the distance
-    std::cout << "The camera is facing an object " << dist_to_center << " meters away \r";
-}
+## Source Repository
 ```
-For more information on the library, please follow our [examples](./examples), and read the [documentation](./doc) to learn more.
+git clone -b d438 https://github.com/gwen2018/librealsense.git 
+```
 
-## Contributing
-In order to contribute to Intel RealSense SDK, please follow our [contribution guidelines](CONTRIBUTING.md).
+## Supported Platforms
+This ED was tested on the following platforms:
+  1) Intel NUC with Ubuntu 22.04.1 LTS and ROS2 humble
+  2) Nvidia Jetson Xavier with Jetpack 4.6.1
+  3) Intel NUC with Windows 10 and Windows 11
+
+
+## Building on Linux
+
+   1) Install nasm, this is required to compile sdk for d438 since it uses libjpegturbo for JPEG image decoding.
+   
+```
+sudo apt-get install nasm
+```
+ 
+   2) Checkout sources and compile, please note the new BUILD_WITH_JPEG_TURBO=true option
+```
+      cd ~ && \
+      git clone -b d438 https://github.com/gwen2018/librealsense.git && \
+      cd librealsense && \
+      sudo ./scripts/setup_udev_rules.sh && \
+      mkdir build && \
+      cd build/ && \
+      cmake ../ \
+      -DBUILD_SHARED_LIBS=true \
+      -DBUILD_WITH_JPEG_TURBO=true \
+      -DBUILDPYTHON_BINDINGS:bool=true \
+      -DBUILD_WITH_CUDA=false \
+      -DFORCE_RSUSB_BACKEND=false \
+      -DPYTHON_EXECUTABLE=/usr/bin/python3 \ -DCMAKEBUILD_TYPE=Release && \
+      make -j$(cat /proc/cpuinfo |grep proc |wc -l) && \
+      sudo make install && \
+      sudo mv libjpeg-turbo/lib/libturbojpeg.so* /usr/local/lib
+```
+ 
+  3) Check the realsense and libjpeg turbo libraries are copied properly under /usr/local/lib
+ ```
+     ls /usr/local/lib
+
+     librealsense2-gl.so -> librealsense2-gl.so.2.53
+     librealsense2-gl.so.2.53 -> librealsense2-gl.so.2.53.2
+     librealsense2-gl.so.2.53.2
+     librealsense2.so -> librealsense2.so.2.53
+     librealsense2.so.2.53 -> librealsense2.so.2.53.2
+     librealsense2.so.2.53.2
+     librealsense-file.a
+     libturbojpeg.so -> libturbojpeg.so.0
+     libturbojpeg.so.0 -> libturbojpeg.so.0.3.0
+     libturbojpeg.so.0.3.0
+ ```
+
+  4) If /usr/local/lib is not already in LD_LIBRARY_PATH, make sure it is.
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+```
+
+  6) Launch realsense-viewer, the cameras should be identified as D438 in the viewer.
+```
+realsense-viewer
+```
+
+  8) The RGB sensor is 13M, so the maximum resolution is 4160x3120@15 fps, choose RGB8 format in the viewer for rendering the RGB image graphically. the camera itself output JPEG but the SDK converts in into RGB8.
+
+## Building on Nvidia Jetson Xavier
+Similar as compilation on Intel Ubuntu platform above. To utilize CUDA capabilities on the Jetson platform, enable CUDA while compile with -DBUILD_WITH_CUDA=true
+
+## Building on Windows
+1) Download nasm compiler ZIP, unzip it and make sure the executable in PATH.
+   https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/win64/nasm-2.15.05-win64.zip
+2) Use cmake and Visual Studio 2015 to compile
+
+
+## ROS support
+   D438 supports ROS2 with a special version of Realsense ROS Wrapper:
+```
+      git clone -b d438 https://github.com/gwen2018/realsense-ros.git
+```
+
+   For example, on Intel NUC with Ubuntu 22.04.1 LTS and ROS2 humble
+
+   a) compile the ROS wrapper
+```
+      git clone -b d438 https://github.com/gwen2018/realsense-ros.git
+      cd realsense-ros
+      source /opt/ros/humble/setup.bash
+      colcon build
+      source install/setup.bash
+```
+
+   b) connect D438 camera and launch camera node with rs_launch.py sample script
+      ros2 launch realsense2_camera rs_launch.py depth_module.profile:=848x480x15 rgb_camera.profile:=4160x3120x15 diagnostics_period:=1.0
+
 
 ## License
 This project is licensed under the [Apache License, Version 2.0](LICENSE).
-Copyright 2018 Intel Corporation
+Copyright 2024 Intel Corporation

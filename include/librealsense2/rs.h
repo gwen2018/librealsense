@@ -25,7 +25,7 @@ extern "C" {
 
 #define RS2_API_MAJOR_VERSION    2
 #define RS2_API_MINOR_VERSION    55
-#define RS2_API_PATCH_VERSION    0
+#define RS2_API_PATCH_VERSION    91
 #define RS2_API_BUILD_VERSION    0
 
 #ifndef STRINGIFY
@@ -48,10 +48,10 @@ extern "C" {
  * The library keeps persistent global settings in a per-user configuration file. These settings can relate to tool
  * behavior (e.g., realsense-viewer) or library functionality (context creation, etc.) where settings are accepted
  * (e.g., rs2_create_context_ex).
- * 
+ *
  * The filename is appended to the user's AppData folder on Windows (<AppData>/<filename>) and home directory as a
  * hidden file on Linux (~/.<filename>).
- * 
+ *
  * The content is a JSON file and by default contains an empty object so default values are used. JSON ordering may
  * shift when written to by the various tools but the contents should stay the same. Any values that do not match the
  * expected type may be ignored.

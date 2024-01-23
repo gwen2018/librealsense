@@ -1,6 +1,13 @@
 # License: Apache 2.0. See LICENSE file in root directory.
 # Copyright(c) 2019 Intel Corporation. All Rights Reserved.
 string(REPLACE ${PROJECT_SOURCE_DIR}/ "" _rel_path ${CMAKE_CURRENT_LIST_DIR})
+
+if(BUILD_WITH_JPEGTURBO)
+add_dependencies(${LRS_TARGET}
+    libjpeg-turbo
+)
+endif()
+
 include(${_rel_path}/core/CMakeLists.txt)
 include(${_rel_path}/ds/CMakeLists.txt)
 include(${_rel_path}/media/CMakeLists.txt)
@@ -59,6 +66,15 @@ endif()
 
 if(BUILD_SHARED_LIBS)
     target_sources(${LRS_TARGET} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/realsense.def")
+endif()
+
+if(BUILD_WITH_JPEGTURBO)
+
+if(WIN32)
+    target_link_libraries(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib/turbojpeg-static.lib)
+else()
+    target_link_libraries(${LRS_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/libjpeg-turbo/lib/libturbojpeg.so)
+endif()
 endif()
 
 target_sources(${LRS_TARGET}
