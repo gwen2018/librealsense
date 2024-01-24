@@ -109,16 +109,20 @@ Similar as compilation on Intel Ubuntu platform above. To utilize CUDA capabilit
 
 
 ## ROS support
-   D438 supports ROS2 with a special version of Realsense ROS Wrapper:
+   D438 supports ROS2 with a special version of Realsense ROS Wrapper.
+
+   On platforms with newer ROS2 versions, for example, Humble, use d438 branch:
 ```
       git clone -b d438 https://github.com/gwen2018/realsense-ros.git
 ```
 
-   For example, on Intel NUC with Ubuntu 22.04.1 LTS and ROS2 humble
-
-   a) compile the ROS wrapper
+   On platforms with older ROS2 versions, for example, Galactic, use d438-4.54.1 branch:
 ```
-      git clone -b d438 https://github.com/gwen2018/realsense-ros.git
+      git clone -b d438-4.54.1 https://github.com/gwen2018/realsense-ros.git
+```
+
+   a) compile the Realsense ROS2 wrapper
+```
       cd realsense-ros
       source /opt/ros/humble/setup.bash
       colcon build
