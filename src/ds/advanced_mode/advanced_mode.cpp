@@ -42,7 +42,7 @@ namespace librealsense
             return results[4] > 0;
         };
 
-        // "Remove IR Pattern" visual preset is available only for D400, D410, D415, D460, D465
+        // "Remove IR Pattern" visual preset is available only for D400, D410, D415, D460
         if (is_enabled())
             register_to_visual_preset_option();
 
@@ -111,7 +111,6 @@ namespace librealsense
             case ds::RS430_PID:
             case ds::RS430I_PID:
             case ds::RS435_RGB_PID:
-            case ds::RS465_PID:
             case ds::RS435I_PID:
             case ds::RS438_PID:
                 default_430(p);
@@ -135,6 +134,7 @@ namespace librealsense
                         << rsutils::string::hexdump( device_pid ) << ")" );
                     break;
                 }
+                break;
             case ds::RS405U_PID:
                 default_405u(p);
                 break;
@@ -180,7 +180,6 @@ namespace librealsense
             case ds::RS400_PID:
             case ds::RS410_PID:
             case ds::RS415_PID:
-            case ds::RS465_PID://TODO: verify
                 d415_remove_ir(p);
                 break;
             case ds::RS460_PID:
@@ -694,6 +693,18 @@ namespace librealsense
 
         if (val.was_set)
             (*_color_sensor)->get_option(RS2_OPTION_POWER_LINE_FREQUENCY).set((float)val.power_line_frequency);
+    }
+
+    void ds_advanced_mode_base::block( const std::string & exception_message )
+    {
+        _blocked = true;
+        _block_message = exception_message;
+    }
+
+    void ds_advanced_mode_base::unblock()
+    {
+        _blocked = false;
+        _block_message.clear();
     }
 
     std::vector<uint8_t> ds_advanced_mode_base::serialize_json() const

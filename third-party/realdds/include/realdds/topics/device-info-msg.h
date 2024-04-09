@@ -1,5 +1,5 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2022 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 #pragma once
 
 #include <rsutils/json.h>
@@ -13,10 +13,6 @@ class device_info
     rsutils::json _json;
 
 public:
-    //std::string serial;
-    //std::string product_line;
-    //bool locked = true;
-
     std::string const & name() const;
     void set_name( std::string const & );
 
@@ -32,6 +28,16 @@ public:
     // Substring of information already stored in the device-info that can be used to print the device 'name'.
     // (mostly for use with debug messages)
     rsutils::string::slice debug_name() const;
+
+    // Common names (that would otherwise go into dds-topic-names.h)
+public:
+    struct key {
+        static std::string const name;
+        static std::string const topic_root;
+        static std::string const serial;
+        static std::string const recovery;
+        static std::string const stopping;
+    };
 };
 
 

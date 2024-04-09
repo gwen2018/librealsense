@@ -1,5 +1,5 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2017 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 
 #include "post-processing-filters-list.h"
 #include "post-processing-block-model.h"
@@ -73,30 +73,29 @@ namespace rs2
                                             bool * options_invalidated,
                                             std::string & error_message )
     {
-        for (auto&& i : s->get_supported_options())
+        for (rs2::option_value option : s->get_supported_option_values())
         {
-            auto opt = static_cast<rs2_option>(i);
-
-            options_metadata[opt] = create_option_model(opt, opt_base_label, this, s, options_invalidated, error_message);
-            try
+            options_metadata[option->id]
+                = create_option_model( option, opt_base_label, this, s, options_invalidated, error_message );
+        }
+        try
+        {
+            s->on_options_changed( [this]( const options_list & list )
             {
-                s->on_options_changed( [this]( const options_list & list )
+                for( auto changed_option : list )
                 {
-                    for( auto opt_id : list )
+                    auto it = options_metadata.find( changed_option->id );
+                    if( it != options_metadata.end() && ! _destructing ) // Callback runs in different context, check options_metadata still valid
                     {
-                        auto it = options_metadata.find( opt_id );
-                        if( it != options_metadata.end() && ! _destructing ) // Callback runs in different context, check options_metadata still valid
-                        {
-                            it->second.value = it->second.endpoint->get_option( opt_id );
-                        }
+                        it->second.value = changed_option;
                     }
-                } );
-            }
-            catch( const std::exception & e )
-            {
-                if( viewer.not_model )
-                    viewer.not_model->add_log( e.what(), RS2_LOG_SEVERITY_WARN );
-            }
+                }
+            } );
+        }
+        catch( const std::exception & e )
+        {
+            if( viewer.not_model )
+                viewer.not_model->add_log( e.what(), RS2_LOG_SEVERITY_WARN );
         }
     }
 
@@ -104,19 +103,19 @@ namespace rs2
     bool restore_processing_block(const char* name,
         std::shared_ptr<rs2::processing_block> pb, bool enable)
     {
-        for (auto opt : pb->get_supported_options())
+        for( auto opt : pb->get_supported_option_values() )
         {
             std::string key = name;
             key += ".";
-            key += pb->get_option_name(opt);
+            key += pb->get_option_name( opt->id );
             if (config_file::instance().contains(key.c_str()))
             {
                 float val = config_file::instance().get(key.c_str());
                 try
                 {
-                    auto range = pb->get_option_range(opt);
+                    auto range = pb->get_option_range( opt->id );
                     if (val >= range.min && val <= range.max)
-                        pb->set_option(opt, val);
+                        pb->set_option( opt->id, val );
                 }
                 catch (...)
                 {
@@ -527,20 +526,12 @@ namespace rs2
             if (fps_group.empty())
                 continue;
 
-            for (auto& fps1 : first_fps_group)
-            {
-                auto it = std::find_if(std::begin(fps_group),
-                    std::end(fps_group),
-                    [&](const int& fps2)
-                    {
-                        return fps2 == fps1;
-                    });
-                if (it != std::end(fps_group))
-                {
-                    break;
-                }
+            auto fps1 = first_fps_group[0];
+            auto it = std::find_if( std::begin( fps_group ),
+                                    std::end( fps_group ),
+                                    [&]( const int & fps2 ) { return fps2 == fps1; } );
+            if( it == std::end( fps_group ) )
                 return false;
-            }
         }
         return true;
     }
@@ -982,7 +973,7 @@ namespace rs2
 
         return res;
     }
-
+    // The function returns true if one of the configuration parameters changed
     bool subdevice_model::draw_stream_selection(std::string& error_message)
     {
         bool res = false;
@@ -998,13 +989,13 @@ namespace rs2
         };
 
         auto col0 = ImGui::GetCursorPosX();
-        auto col1 = 155.f;
+        auto col1 = 9.f * (float)config_file::instance().get( configurations::window::font_size );
 
         if (ui.is_multiple_resolutions && !strcmp(s->get_info(RS2_CAMERA_INFO_NAME), "Stereo Module"))
         {
             if (draw_fps_selector)
             {
-                res &= draw_fps(error_message, label, streaming_tooltip, col0, col1);
+                res |= draw_fps(error_message, label, streaming_tooltip, col0, col1);
             }
 
             if (draw_streams_selector)
@@ -1014,21 +1005,21 @@ namespace rs2
                     ImGui::Text("Available Streams:");
                 }
 
-                res &= draw_res_stream_formats(error_message, label, streaming_tooltip, col0, col1);
+                res |= draw_res_stream_formats(error_message, label, streaming_tooltip, col0, col1);
             }
         }
         else
         {
-            res &= draw_resolutions(error_message, label, streaming_tooltip, col0, col1);
+            res |= draw_resolutions(error_message, label, streaming_tooltip, col0, col1);
 
             if (draw_fps_selector)
             {
-                res &= draw_fps(error_message, label, streaming_tooltip, col0, col1);
+                res |= draw_fps(error_message, label, streaming_tooltip, col0, col1);
             }
 
             if (draw_streams_selector)
             {
-                res &= draw_streams_and_formats(error_message, label, streaming_tooltip, col0, col1);
+                res |= draw_streams_and_formats(error_message, label, streaming_tooltip, col0, col1);
             }
         }
 
@@ -1687,7 +1678,7 @@ namespace rs2
                 if (next == RS2_OPTION_ENABLE_AUTO_EXPOSURE)
                 {
                     auto old_ae_enabled = auto_exposure_enabled;
-                    auto_exposure_enabled = opt_md.value > 0;
+                    auto_exposure_enabled = opt_md.value_as_float() > 0;
 
                     if (!old_ae_enabled && auto_exposure_enabled)
                     {
@@ -1711,11 +1702,11 @@ namespace rs2
 
                 if (next == RS2_OPTION_DEPTH_UNITS)
                 {
-                    opt_md.dev->depth_units = opt_md.value;
+                    opt_md.dev->depth_units = opt_md.value_as_float();
                 }
 
                 if (next == RS2_OPTION_STEREO_BASELINE)
-                    opt_md.dev->stereo_baseline = opt_md.value;
+                    opt_md.dev->stereo_baseline = opt_md.value_as_float();
             }
 
             next_option++;

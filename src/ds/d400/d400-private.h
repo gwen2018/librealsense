@@ -5,6 +5,7 @@
 
 #include "ds/ds-private.h"
 #include <src/platform/backend-device-group.h>
+#include <src/core/notification.h>
 
 namespace librealsense
 {
@@ -32,7 +33,6 @@ namespace librealsense
         const uint16_t RS435I_PID = 0x0b3a; // D435i
         const uint16_t RS416_PID = 0x0b49; // F416
         const uint16_t RS430I_PID = 0x0b4b; // D430i
-        const uint16_t RS465_PID = 0x0b4d; // D465
         const uint16_t RS416_RGB_PID = 0x0B52; // F416 RGB
         const uint16_t RS405_PID = 0x0B5B; // D405
         const uint16_t RS455_PID = 0x0B5C; // D455
@@ -59,7 +59,6 @@ namespace librealsense
             ds::RS435I_PID,
             ds::RS416_RGB_PID,
             ds::RS430I_PID,
-            ds::RS465_PID,
             ds::RS416_PID,
             ds::RS405_PID,
             ds::RS455_PID,
@@ -76,7 +75,6 @@ namespace librealsense
             ds::RS430_MM_RGB_PID,
             ds::RS435_RGB_PID,
             ds::RS435I_PID,
-            ds::RS465_PID,
             ds::RS455_PID,
             ds::RS457_PID,
             ds::RS438_PID,
@@ -85,7 +83,6 @@ namespace librealsense
         static const std::set<std::uint16_t> d400_hid_sensors_pid = {
             ds::RS435I_PID,
             ds::RS430I_PID,
-            ds::RS465_PID,
             ds::RS455_PID
         };
 
@@ -95,9 +92,7 @@ namespace librealsense
             ds::RS455_PID
         };
 
-        static const std::set<std::uint16_t> d400_hid_bmi_085_pid = {
-            RS465_PID
-        };
+        static const std::set<std::uint16_t> d400_hid_bmi_085_pid = { };
 
         static const std::set<std::uint16_t> d400_fisheye_pid = {
             ds::RS400_MM_PID,
@@ -128,7 +123,6 @@ namespace librealsense
             { RS435I_PID,           "Intel RealSense D435I" },
             { RS416_PID,            "Intel RealSense F416"},
             { RS430I_PID,           "Intel RealSense D430I"},
-            { RS465_PID,            "Intel RealSense D465" },
             { RS416_RGB_PID,        "Intel RealSense F416 with RGB Module"},
             { RS405_PID,            "Intel RealSense D405" },
             { RS455_PID,            "Intel RealSense D455" },
@@ -157,7 +151,6 @@ namespace librealsense
             {RS435I_PID, "5.12.7.100" },
             {RS416_PID, "5.8.15.0" },
             {RS430I_PID, "5.8.15.0" },
-            {RS465_PID, "5.12.7.100" },
             {RS416_RGB_PID, "5.8.15.0" },
             {RS405_PID, "5.12.11.8" },
             {RS455_PID, "5.13.0.50" },
@@ -272,5 +265,74 @@ namespace librealsense
             float3              translation_rect;           // Translation vector for rectification
             uint8_t             reserved[24];
         };
+
+        enum d400_notifications_types
+        {
+            success = 0,
+            hot_laser_power_reduce,
+            hot_laser_disable,
+            flag_B_laser_disable,
+            stereo_module_not_connected,
+            eeprom_corrupted,
+            calibration_corrupted,
+            mm_upd_fail,
+            isp_upd_fail,
+            mm_force_pause,
+            mm_failure,
+            usb_scp_overflow,
+            usb_rec_overflow,
+            usb_cam_overflow,
+            mipi_left_error,
+            mipi_right_error,
+            mipi_rt_error,
+            mipi_fe_error,
+            i2c_cfg_left_error,
+            i2c_cfg_right_error,
+            i2c_cfg_rt_error,
+            i2c_cfg_fe_error,
+            stream_not_start_z,
+            stream_not_start_y,
+            stream_not_start_cam,
+            rec_error,
+            usb2_limit,
+            cold_laser_disable,
+            no_temperature_disable_laser,
+            isp_boot_data_upload_failed,
+        };
+
+        // Elaborate FW XU report. The reports may be consequently extended for PU/CTL/ISP
+        const std::map< int, std::string > d400_fw_error_report = {
+            { success, "Success" },
+            { hot_laser_power_reduce, "Laser hot - power reduce" },
+            { hot_laser_disable, "Laser hot - disabled" },
+            { flag_B_laser_disable, "Flag B - laser disabled" },
+            { stereo_module_not_connected, "Stereo Module is not connected" },
+            { eeprom_corrupted, "EEPROM corrupted" },
+            { calibration_corrupted, "Calibration corrupted" },
+            { mm_upd_fail, "Motion Module update failed" },
+            { isp_upd_fail, "ISP update failed" },
+            { mm_force_pause, "Motion Module force pause" },
+            { mm_failure, "Motion Module failure" },
+            { usb_scp_overflow, "USB SCP overflow" },
+            { usb_rec_overflow, "USB REC overflow" },
+            { usb_cam_overflow, "USB CAM overflow" },
+            { mipi_left_error, "Left MIPI error" },
+            { mipi_right_error, "Right MIPI error" },
+            { mipi_rt_error, "RT MIPI error" },
+            { mipi_fe_error, "FishEye MIPI error" },
+            { i2c_cfg_left_error, "Left IC2 Config error" },
+            { i2c_cfg_right_error, "Right IC2 Config error" },
+            { i2c_cfg_rt_error, "RT IC2 Config error" },
+            { i2c_cfg_fe_error, "FishEye IC2 Config error" },
+            { stream_not_start_z, "Depth stream start failure" },
+            { stream_not_start_y, "IR stream start failure" },
+            { stream_not_start_cam, "Camera stream start failure" },
+            { rec_error, "REC error" },
+            { usb2_limit, "USB2 Limit" },
+            { cold_laser_disable, "Laser cold - disabled" },
+            { no_temperature_disable_laser, "Temperature read failure - laser disabled" },
+            { isp_boot_data_upload_failed, "ISP boot data upload failure" },
+        };
+
     } // namespace ds
 } // namespace librealsense

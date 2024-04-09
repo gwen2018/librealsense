@@ -37,7 +37,7 @@ namespace librealsense
         std::vector<std::function<void(float)>> _callbacks;
     };
 
-    class readonly_option : public option
+    class readonly_option : virtual public option
     {
     public:
         bool is_read_only() const override { return true; }
@@ -388,19 +388,19 @@ namespace librealsense
     public:
         explicit gated_by_value_option(
             std::shared_ptr< option > leading_to_read_only,
-            std::vector< std::tuple< std::shared_ptr< option >, float, std::string > > gated_options )
+            std::vector< std::tuple< std::shared_ptr< option >, float, std::string > > gating_options )
             : proxy_option( leading_to_read_only )
         {
-            for( auto & gated : gated_options )
+            for( auto & gate : gating_options )
             {
-                _gated_options.push_back( gated );
+                _gating_options.push_back( gate );
             }
         }
 
         void set( float requested_option_value ) override;
 
     private:
-        std::vector< std::tuple< std::weak_ptr< option >, float, std::string > > _gated_options;
+        std::vector< std::tuple< std::weak_ptr< option >, float, std::string > > _gating_options;
     };
 
 

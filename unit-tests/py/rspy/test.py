@@ -14,7 +14,7 @@ In addition you may want to use the 'info' functions in this module to add more 
 messages in case of a failed check
 """
 
-import os, sys, subprocess, threading, traceback, platform, math
+import os, sys, subprocess, threading, traceback, platform, math, re
 
 from rspy import log
 
@@ -259,19 +259,42 @@ def check_equal( result, expected, on_fail=LOG ):
     :param on_fail: How to behave on failure; see constants above
     :return: True if assertion passed, False otherwise
     """
-    if type(expected) == list:
-        raise RuntimeError( "check_equal should not be used for lists. Use check_equal_lists instead" )
-    if type(expected) != type(result):
-        print_stack()
-        log.out( "        left  type:", type(result) )
-        log.out( "        right type:", type(expected) )
-        return check_failed( on_fail )
+    if expected is not None  and  result is not None  and  type(expected) != type(result):
+        raise RuntimeError( f'incompatible types passed to check_equal( {type(result)}, {type(expected)} )' )
     if result != expected:
         print_stack()
-        log.out( "        left  :", result )
-        log.out( "        right :", expected )
+        if type(expected) == list:
+            i = 0
+            if len(result) != len(expected):
+                log.out( f'        left  : {result} len {len(result)}' )
+                log.out( f'        right : {expected} len {len(expected)}' )
+            else:
+                log.out( f'        list diffs, size={len(expected)}:' )
+                n = 0
+                w = 5
+                for res, exp in zip(result, expected):
+                    if res != exp:
+                        if n <= 5:
+                            w = max( len(str(res)), w )
+                        else:
+                            break;
+                        n += 1
+                n = 0
+                for res, exp in zip(result, expected):
+                    if res != exp:
+                        if n <= 5:
+                            log.out( f'{i:13} : {res:>{w}}  ->  {exp}' )
+                        n += 1
+                    i += 1
+                if n > 5:
+                    log.out( f'                ... and {n-5} more' )
+        else:
+            log.out( f'        left  : {result}' )
+            log.out( f'        right : {expected}' )
         return check_failed( on_fail )
     return check_passed()
+
+check_equal_lists = check_equal
 
 
 def check_between( result, min, max, on_fail=LOG ):
@@ -328,35 +351,6 @@ def unexpected_exception():
     return _unexpected_exception( type, e, tb )
 
 
-def check_equal_lists( result, expected, on_fail=LOG ):
-    """
-    Used to assert that 2 lists are identical. python "equality" (using ==) requires same length & elements
-    but not necessarily same ordering. Here we require exactly the same, including ordering.
-    :param result: The actual list
-    :param expected: The expected list
-    :param on_fail: How to behave on failure; see constants above
-    :return: True if assertion passed, False otherwise
-    """
-    failed = False
-    if len(result) != len(expected):
-        failed = True
-        log.out("Check equal lists failed due to lists of different sizes:")
-        log.out("The resulted list has", len(result), "elements, but the expected list has", len(expected), "elements")
-    i = 0
-    for res, exp in zip(result, expected):
-        if res != exp:
-            failed = True
-            log.out("Check equal lists failed due to unequal elements:")
-            log.out("The element of index", i, "in both lists was not equal")
-        i += 1
-    if failed:
-        print_stack()
-        log.out( "        result list  :", result )
-        log.out( "        expected list:", expected )
-        return check_failed( on_fail )
-    return check_passed()
-
-
 def check_float_lists( result, expected, epsilon=1e-6, on_fail=LOG ):
     """
     Like check_equal_lists but checks that floats diff is less then epsilon, not exactly equal
@@ -391,7 +385,7 @@ def check_exception( exception, expected_type, expected_msg=None, on_fail=LOG ):
     Used to assert a certain type of exception was raised, placed in the except block
     :param exception: The exception that was raised
     :param expected_type: The expected type of exception
-    :param expected_msg: The expected message in the exception
+    :param expected_msg: The expected message in the exception; can be re.Pattern: use re.compile(...)
     :param on_fail: How to behave on failure; see constants above
     :return: True if assertion passed, False otherwise
     """
@@ -400,9 +394,17 @@ def check_exception( exception, expected_type, expected_msg=None, on_fail=LOG ):
         failed = [ "        raised exception was", type(exception),
                  "\n        but expected", expected_type,
                  "\n      With message:", str(exception) ]
-    elif expected_msg is not None and str(exception) != expected_msg:
-        failed = [ "        exception message:", str(exception),
-                 "\n        but we expected  :", expected_msg ]
+    elif expected_msg is not None:
+        if isinstance( expected_msg, str ):
+            if str(exception) != expected_msg:
+                failed = [ "        exception message:", str(exception),
+                         "\n        but we expected  :", expected_msg ]
+        elif isinstance( expected_msg, re.Pattern ):
+            if not expected_msg.fullmatch( str(exception) ):
+                failed = [ "        exception message :", str(exception),
+                         "\n        but expected regex:", expected_msg.pattern ]
+        else:
+            raise RuntimeError( f"exception message should be string or compiled regex (got {type(expected_msg)})" )
     if failed:
         print_stack()
         log.out( *failed )

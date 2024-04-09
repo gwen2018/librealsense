@@ -5,6 +5,9 @@
 #include "sensor.h"
 
 #include <rsutils/string/from.h>
+#include <rsutils/json.h>
+
+using rsutils::json;
 
 
 namespace librealsense {
@@ -35,6 +38,34 @@ void option_base::enable_recording(std::function<void(const option&)> recording_
 {
     _recording_function = recording_action;
 }
+
+json option::get_value() const noexcept
+{
+    json value;
+    try
+    {
+        value = query();
+    }
+    catch( ... )
+    {
+        // Sometimes option values may not be available, meaning the value stays null
+    }
+    return value;
+}
+
+
+rs2_option_type option::get_value_type() const noexcept
+{
+    // By default, all options are floats
+    return RS2_OPTION_TYPE_FLOAT;
+}
+
+
+void option::set_value( json value )
+{
+    set( value );
+}
+
 
 void option::create_snapshot(std::shared_ptr<option>& snapshot) const
 {
@@ -99,22 +130,21 @@ void gated_option::set( float value )
 
 void gated_by_value_option::set( float requested_option_value )
 {
-    for( auto & gated : _gated_options )
+    for( auto & gate : _gating_options )
     {
-        auto gating_option = std::get< 0 >( gated ).lock();
+        auto gating_option = std::get< 0 >( gate ).lock();
         if( ! gating_option )
-            continue;  // if gated option is not available, step over it
+            throw std::runtime_error( rsutils::string::from() << "Gating option not alive. " << std::get< 2 >( gate ) );
+
+        auto wanted_gate_value = std::get< 1 >( gate );
         auto current_gate_value = gating_option->query();
-        if( current_gate_value == std::get< 1 >( gated ) )
-        {
-            _proxy->set( requested_option_value );
-            _recording_function( *this );
-        }
-        else
-        {
-            throw std::runtime_error( std::get< 2 >( gated ) );
-        }
+        if( current_gate_value != wanted_gate_value )
+            throw librealsense::invalid_value_exception( std::get< 2 >( gate ) );
     }
+
+    _proxy->set( requested_option_value );
+
+    _recording_function( *this );
 }
 
 

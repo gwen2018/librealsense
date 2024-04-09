@@ -41,6 +41,9 @@
 #include <regex>
 #include <iterator>
 
+#include <src/ds/features/auto-exposure-limit-feature.h>
+#include <src/ds/features/gain-limit-feature.h>
+
 #ifdef HWM_OVER_XU
 constexpr bool hw_mon_over_xu = true;
 #else
@@ -322,7 +325,6 @@ namespace librealsense
             case ds::RS400_PID:
             case ds::RS410_PID:
             case ds::RS415_PID:
-            case ds::RS465_PID:
             case ds::RS460_PID:
                 preset_max_value = static_cast<float>(RS2_RS400_VISUAL_PRESET_REMOVE_IR_PATTERN);
                 break;
@@ -686,7 +688,7 @@ namespace librealsense
                     _polling_error_handler = std::make_shared<polling_error_handler>(1000,
                         error_control,
                         raw_depth_sensor->get_notifications_processor(),
-                        std::make_shared<ds_notification_decoder>());
+                        std::make_shared< ds_notification_decoder >( d400_fw_error_report ) );
 
                     depth_sensor.register_option(RS2_OPTION_ERROR_POLLING_ENABLED, std::make_shared<polling_errors_disable>(_polling_error_handler));
                 }
@@ -827,7 +829,7 @@ namespace librealsense
             {
                 bool is_fw_version_using_id = (_fw_version >= firmware_version("5.12.8.100"));
                 auto alternating_emitter_opt = std::make_shared<alternating_emitter_option>(*_hw_monitor, is_fw_version_using_id);
-                auto emitter_always_on_opt = std::make_shared<emitter_always_on_option>( *_hw_monitor );
+                auto emitter_always_on_opt = std::make_shared<emitter_always_on_option>( _hw_monitor, ds::LASERONCONST, ds::LASERONCONST );
 
                 if ((_fw_version >= firmware_version("5.12.1.0")) && ((_device_capabilities & ds_caps::CAP_GLOBAL_SHUTTER) == ds_caps::CAP_GLOBAL_SHUTTER))
                 {
@@ -966,6 +968,13 @@ namespace librealsense
             register_feature( std::make_shared< remove_ir_pattern_feature >() );
 
         register_feature( std::make_shared< auto_exposure_roi_feature >( get_depth_sensor(), _hw_monitor ) );
+
+        if( pid != ds::RS457_PID && pid != ds::RS415_PID && fw_ver >= firmware_version( 5, 12, 10, 11 ) )
+        {
+            register_feature(
+                std::make_shared< auto_exposure_limit_feature >( get_depth_sensor(), d400_device::_hw_monitor ) );
+            register_feature( std::make_shared< gain_limit_feature >( get_depth_sensor(), d400_device::_hw_monitor ) );
+        }
     }
 
     void d400_device::register_metadata(const synthetic_sensor &depth_sensor, const firmware_version& hdr_firmware_version) const
@@ -1191,6 +1200,13 @@ namespace librealsense
                 return it->second;
         }
         return platform::usb_undefined;
+    }
+
+
+    rs2_format d400_device::get_ir_format() const
+    {
+        auto const format_conversion = get_format_conversion();
+        return ( format_conversion == format_conversion::raw ) ? RS2_FORMAT_Y8I : RS2_FORMAT_Y8;
     }
 
 

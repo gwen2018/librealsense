@@ -1,6 +1,5 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2022 Intel Corporation. All Rights Reserved.
-
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 #pragma once
 
 #include <realdds/dds-device.h>
@@ -35,22 +34,23 @@ class flexible_msg;
 
 class dds_device::impl
 {
+public:
     enum class state_t
     {
-        WAIT_FOR_DEVICE_HEADER,
-        WAIT_FOR_DEVICE_OPTIONS,
-        WAIT_FOR_STREAM_HEADER,
-        WAIT_FOR_STREAM_OPTIONS,
-        READY
+        OFFLINE,                  // disconnected by device-watcher
+        ONLINE,                   // default state, waiting for handshake (device-header)
+        WAIT_FOR_DEVICE_OPTIONS,  //   |
+        WAIT_FOR_STREAM_HEADER,   //   | handshake (initialization)
+        WAIT_FOR_STREAM_OPTIONS,  //   |
+        READY                     // post handshake; streamable, controllable, etc.
     };
-    static char const * to_string( state_t );
+
     void set_state( state_t );
 
-    state_t _state = state_t::WAIT_FOR_DEVICE_HEADER;
+    state_t _state = state_t::ONLINE;
     size_t _n_streams_expected = 0;  // needed only until ready
 
-public:
-    topics::device_info const _info;
+    topics::device_info _info;
     rsutils::json const _device_settings;
     dds_guid _server_guid;
     std::shared_ptr< dds_participant > const _participant;
@@ -61,7 +61,7 @@ public:
     std::mutex _replies_mutex;
     std::condition_variable _replies_cv;
     std::map< dds_sequence_number, rsutils::json > _replies;
-    size_t _reply_timeout_ms;
+    size_t const _reply_timeout_ms;
 
     std::shared_ptr< dds_topic_reader > _notifications_reader;
     std::shared_ptr< dds_topic_reader > _metadata_reader;
@@ -74,18 +74,21 @@ public:
     impl( std::shared_ptr< dds_participant > const & participant,
           topics::device_info const & info );
 
+    void reset();
+
     dds_guid const & guid() const;
     std::string debug_name() const;
 
-    void wait_until_ready( size_t timeout_ms );
+    bool is_offline() const { return state_t::OFFLINE == _state; }
+    bool is_online() const { return ! is_offline(); }
     bool is_ready() const { return state_t::READY == _state; }
 
     void open( const dds_stream_profiles & profiles );
 
     void write_control_message( topics::flexible_msg &&, rsutils::json * reply = nullptr );
 
-    void set_option_value( const std::shared_ptr< dds_option > & option, float new_value );
-    float query_option_value( const std::shared_ptr< dds_option > & option );
+    void set_option_value( const std::shared_ptr< dds_option > & option, rsutils::json new_value );
+    rsutils::json query_option_value( const std::shared_ptr< dds_option > & option );
 
     using on_metadata_available_signal = rsutils::signal< std::shared_ptr< const rsutils::json > const & >;
     using on_metadata_available_callback = on_metadata_available_signal::callback;
@@ -117,7 +120,8 @@ private:
     void create_control_writer();
 
     // notification handlers
-    void on_option_value( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
+    void on_set_option( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
+    void on_query_options( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
     void on_known_notification( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
     void on_log( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
     void on_device_header( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
@@ -125,12 +129,7 @@ private:
     void on_stream_header( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
     void on_stream_options( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
 
-    typedef std::map< std::string,
-                      void ( dds_device::impl::* )( rsutils::json const &,
-                                                    eprosima::fastdds::dds::SampleInfo const & ) >
-        notification_handlers;
-    static notification_handlers const _notification_handlers;
-    void handle_notification( rsutils::json const &, eprosima::fastdds::dds::SampleInfo const & );
+    void on_notification( rsutils::json &&, eprosima::fastdds::dds::SampleInfo const & );
 
     on_metadata_available_signal _on_metadata_available;
     on_device_log_signal _on_device_log;

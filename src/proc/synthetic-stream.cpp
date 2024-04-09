@@ -402,7 +402,7 @@ namespace librealsense
             width = vf->get_width();
             stride = width * bpp / 8;
         }
-        else if (width == 0)
+        else if (width == 0 && bpp != 0)
         {
             width = stride * 8 / bpp;
         }

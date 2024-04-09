@@ -1,9 +1,12 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2017 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 #pragma once
+
+#include <src/float3.h>
 
 #include <map>
 #include <vector>
+#include <set>
 
 namespace rs2
 {
@@ -167,5 +170,7 @@ namespace librealsense {
 
         float   _depth_units = 0.f;
         float   _d2d_convert_factor = 0.f;
+
+        const std::set<rs2_format> _supported_formats = {RS2_FORMAT_Z16, RS2_FORMAT_DISPARITY32};
     };
 }

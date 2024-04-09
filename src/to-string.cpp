@@ -1,5 +1,5 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2021 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 
 #include "core/options-registry.h"
 #include "core/enum-helpers.h"
@@ -235,6 +235,23 @@ const char * get_string( rs2_depth_auto_exposure_mode mode )
 #undef CASE
 }
 
+const char * get_string( rs2_gyro_sensitivity value )
+{
+#define CASE( X ) STRCASE( GYRO_SENSITIVITY, X )
+    switch( value )
+    {
+        CASE( 61_0_MILLI_DEG_SEC )
+        CASE( 30_5_MILLI_DEG_SEC )
+        CASE( 15_3_MILLI_DEG_SEC )
+        CASE( 7_6_MILLI_DEG_SEC )
+        CASE( 3_8_MILLI_DEG_SEC )
+    default:
+        assert( ! is_valid( value ) );
+        return UNKNOWN_VALUE;
+    }
+#undef CASE
+}
+
 const char * get_string( rs2_extension value )
 {
 #define CASE( X ) STRCASE( EXTENSION, X )
@@ -441,6 +458,7 @@ std::string const & get_string_( rs2_option value )
         arr[RS2_OPTION_DEPTH_AUTO_EXPOSURE_MODE] = "Auto Exposure Mode";
         CASE( OHM_TEMPERATURE )
         CASE( SOC_PVT_TEMPERATURE )
+        CASE( GYRO_SENSITIVITY )
 #undef CASE
         return arr;
     }();
@@ -724,6 +742,25 @@ const char * get_string( rs2_l500_visual_preset value )
 }
 
 
+std::string const & get_string( rs2_option_type value )
+{
+    static auto str_array = []()
+    {
+        std::vector< std::string > arr( RS2_OPTION_TYPE_COUNT );
+#define CASE( X ) STRARR( arr, OPTION_TYPE, X );
+        CASE( FLOAT )
+        CASE( STRING )
+        CASE( INTEGER )
+        CASE( BOOLEAN )
+#undef CASE
+            return arr;
+    }();
+    if( ! is_valid( value ) )
+        return unknown_value_str;
+    return str_array[value];
+}
+
+
 }  // namespace librealsense
 
 const char * rs2_stream_to_string( rs2_stream stream ) { return librealsense::get_string( stream ); }
@@ -742,6 +779,7 @@ rs2_option rs2_option_from_string( char const * option_name )
         : RS2_OPTION_COUNT;
 }
 
+const char * rs2_option_type_to_string( rs2_option_type type ) { return librealsense::get_string( type ).c_str(); }
 const char * rs2_camera_info_to_string( rs2_camera_info info ) { return librealsense::get_string( info ); }
 const char * rs2_timestamp_domain_to_string( rs2_timestamp_domain info ) { return librealsense::get_string( info ); }
 const char * rs2_notification_category_to_string( rs2_notification_category category ) { return librealsense::get_string( category ); }
@@ -765,3 +803,4 @@ const char * rs2_calibration_status_to_string( rs2_calibration_status status ) {
 const char * rs2_host_perf_mode_to_string( rs2_host_perf_mode mode ) { return librealsense::get_string( mode ); }
 const char * rs2_emitter_frequency_mode_to_string( rs2_emitter_frequency_mode mode ) { return librealsense::get_string( mode ); }
 const char * rs2_depth_auto_exposure_mode_to_string( rs2_depth_auto_exposure_mode mode ) { return librealsense::get_string( mode ); }
+const char * rs2_gyro_sensitivity_to_string( rs2_gyro_sensitivity mode ){return librealsense::get_string( mode );}

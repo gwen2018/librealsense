@@ -1,5 +1,5 @@
 // License: Apache 2.0 See LICENSE file in root directory.
-// Copyright(c) 2015 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 
 #include <functional>   // For function
 
@@ -24,6 +24,7 @@
 #include "proc/processing-blocks-factory.h"
 #include "proc/colorizer.h"
 #include "proc/pointcloud.h"
+#include "proc/align.h"
 #include "proc/threshold.h"
 #include "proc/units-transform.h"
 #include "proc/disparity-transform.h"
@@ -67,6 +68,7 @@
 ////////////////////////
 
 using namespace librealsense;
+using rsutils::json;
 
 struct rs2_stream_profile_list
 {
@@ -84,9 +86,67 @@ struct rs2_device_list
     std::vector< std::shared_ptr< librealsense::device_info > > list;
 };
 
+struct rs2_option_value_wrapper : rs2_option_value
+{
+    // Keep the original json value, so we can refer to it (e.g., with as_string)
+    std::shared_ptr< const json > p_json;
+
+    // Add a reference count to control lifetime
+    mutable std::atomic< int > ref_count;
+
+    rs2_option_value_wrapper( rs2_option option_id,
+                              rs2_option_type option_type,
+                              std::shared_ptr< const json > const & p_json_value )
+        : ref_count( 1 )
+        , p_json( p_json_value )
+    {
+        id = option_id;
+        type = option_type;
+        is_valid = false;
+        if( p_json && ! p_json->is_null() )
+        {
+            switch( type )
+            {
+            case RS2_OPTION_TYPE_FLOAT:
+                if( ! p_json->is_number() )
+                    throw invalid_value_exception( get_string( option_id )
+                                                   + " value is not a float: " + p_json->dump() );
+                p_json->get_to( as_float );
+                break;
+
+            case RS2_OPTION_TYPE_INTEGER:
+                if( ! p_json->is_number_integer() )
+                    throw invalid_value_exception( get_string( option_id )
+                                                   + " value is not an integer: " + p_json->dump() );
+                p_json->get_to( as_integer );
+                break;
+
+            case RS2_OPTION_TYPE_BOOLEAN:
+                if( ! p_json->is_boolean() )
+                    throw invalid_value_exception( get_string( option_id )
+                                                   + " value is not a boolean: " + p_json->dump() );
+                as_integer = p_json->get< bool >();
+                break;
+
+            case RS2_OPTION_TYPE_STRING:
+                if( ! p_json->is_string() )
+                    throw invalid_value_exception( get_string( option_id )
+                                                   + " value is not a string: " + p_json->dump() );
+                as_string = p_json->string_ref().c_str();
+                break;
+
+            default:
+                throw invalid_value_exception( "invalid " + get_string( option_id ) + " type "
+                                               + get_string( option_type ) );
+            }
+            is_valid = true;
+        }
+    }
+};
+
 struct rs2_options_list
 {
-    std::vector< rs2_option > list;
+    std::vector< rs2_option_value_wrapper const * > list;
 };
 
 struct rs2_sensor : public rs2_options
@@ -174,6 +234,7 @@ struct rs2_error
 
 rs2_error *rs2_create_error(const char* what, const char* name, const char* args, rs2_exception_type type) BEGIN_API_CALL
 {
+    LOG_ERROR( "[" << name << "( " << args << " ) " << rs2_exception_type_to_string( type ) << "] " << what );
     return new rs2_error{ what, name, args, type };
 }
 NOEXCEPT_RETURN(nullptr, what, name, args, type)
@@ -192,7 +253,7 @@ rs2_context* rs2_create_context(int api_version, rs2_error** error) BEGIN_API_CA
 {
     verify_version_compatibility(api_version);
 
-    rsutils::json settings;
+    json settings;
     return new rs2_context{ context::make( settings ) };
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, api_version)
@@ -657,29 +718,166 @@ int rs2_is_option_read_only(const rs2_options* options, rs2_option option, rs2_e
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, options, option)
 
-float rs2_get_option(const rs2_options* options, rs2_option option, rs2_error** error) BEGIN_API_CALL
+float rs2_get_option(const rs2_options* options, rs2_option option_id, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    VALIDATE_OPTION(options, option);
-    return options->options->get_option(option).query();
+    VALIDATE_OPTION_ENABLED(options, option_id);
+    auto & option = options->options->get_option( option_id );
+    switch( option.get_value_type() )
+    {
+    case RS2_OPTION_TYPE_FLOAT:
+    case RS2_OPTION_TYPE_INTEGER:
+        return option.query();
+
+    case RS2_OPTION_TYPE_BOOLEAN:
+        return (float)option.get_value().get< bool >();
+
+    case RS2_OPTION_TYPE_STRING:
+        // We can convert "enum" options to a float value
+        auto r = option.get_range();
+        if( r.min == 0.f && r.step == 1.f )
+        {
+            json value = option.get_value();
+            for( auto i = 0.f; i < r.max; i += r.step )
+            {
+                auto desc = option.get_value_description( i );
+                if( ! desc )
+                    break;
+                if( value == desc )
+                    return i;
+            }
+        }
+        throw not_implemented_exception( "use rs2_get_option_value to get string values" );
+    }
+    return option.query();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(0.0f, options, option)
+HANDLE_EXCEPTIONS_AND_RETURN(0.f, options, option_id)
+
+rs2_option_value const * rs2_get_option_value( const rs2_options * options, rs2_option option_id, rs2_error ** error ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( options );
+    auto & option = options->options->get_option( option_id );  // throws
+    std::shared_ptr< const json > value;
+    if( option.is_enabled() )
+        value = std::make_shared< const json >( option.get_value() );
+    auto wrapper = new rs2_option_value_wrapper( option_id, option.get_value_type(), value );
+    return wrapper;
+}
+HANDLE_EXCEPTIONS_AND_RETURN( nullptr, options, option_id )
+
+void rs2_delete_option_value( rs2_option_value const * p_value ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( p_value );
+    auto wrapper = static_cast< rs2_option_value_wrapper const * >( p_value );
+    if( wrapper && ! --wrapper->ref_count )
+        delete wrapper;
+}
+NOEXCEPT_RETURN( , p_value )
 
 void rs2_set_option(const rs2_options* options, rs2_option option, float value, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    VALIDATE_OPTION(options, option);
+    VALIDATE_OPTION_ENABLED(options, option);
     auto& option_ref = options->options->get_option(option);
     auto range = option_ref.get_range();
-    VALIDATE_RANGE(value, range.min, range.max);
-    option_ref.set(value);
+    switch( option_ref.get_value_type() )
+    {
+    case RS2_OPTION_TYPE_FLOAT:
+        if( range.min != range.max && range.step )
+            VALIDATE_RANGE( value, range.min, range.max );
+        option_ref.set( value );
+        break;
+
+    case RS2_OPTION_TYPE_INTEGER:
+        if( range.min != range.max && range.step )
+            VALIDATE_RANGE( value, range.min, range.max );
+        if( (int)value != value )
+            throw invalid_value_exception( rsutils::string::from() << "not an integer: " << value );
+        option_ref.set( value );
+        break;
+
+    case RS2_OPTION_TYPE_BOOLEAN:
+        if( value == 0.f )
+            option_ref.set_value( false );
+        else if( value == 1.f )
+            option_ref.set_value( true );
+        else
+            throw invalid_value_exception( rsutils::string::from() << "not a boolean: " << value );
+        break;
+
+    case RS2_OPTION_TYPE_STRING:
+        // We can convert "enum" options to a float value
+        if( (int)value == value && range.min == 0.f && range.step == 1.f )
+        {
+            auto desc = option_ref.get_value_description( value );
+            if( desc )
+            {
+                option_ref.set_value( desc );
+                break;
+            }
+        }
+        throw not_implemented_exception( "use rs2_set_option_value to set string values" );
+    }
 }
 HANDLE_EXCEPTIONS_AND_RETURN(, options, option, value)
+
+void rs2_set_option_value( rs2_options const * options, rs2_option_value const * option_value, rs2_error ** error ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( options );
+    VALIDATE_NOT_NULL( option_value );
+    auto & option = options->options->get_option( option_value->id );  // throws
+    if( ! option_value->is_valid )
+    {
+        option.set_value( rsutils::null_json );
+        return;
+    }
+    rs2_option_type const option_type = option.get_value_type();
+    if( option_value->type != option_type )
+        throw invalid_value_exception( "expected " + get_string( option_type ) + " type" );
+    auto range = option.get_range();
+    switch( option_type )
+    {
+    case RS2_OPTION_TYPE_FLOAT:
+        VALIDATE_RANGE( option_value->as_float, range.min, range.max );
+        option.set_value( option_value->as_float );
+        break;
+
+    case RS2_OPTION_TYPE_INTEGER:
+        VALIDATE_RANGE( option_value->as_integer, range.min, range.max );
+        option.set_value( option_value->as_integer );
+        break;
+
+    case RS2_OPTION_TYPE_BOOLEAN:
+        VALIDATE_RANGE( option_value->as_integer, range.min, range.max );
+        option.set_value( (bool)option_value->as_integer );
+        break;
+
+    case RS2_OPTION_TYPE_STRING:
+        option.set_value( option_value->as_string );
+        break;
+
+    default:
+        throw not_implemented_exception( "unexpected option type " + get_string( option_type ) );
+    }
+}
+HANDLE_EXCEPTIONS_AND_RETURN( , options, option_value )
 
 rs2_options_list* rs2_get_options_list(const rs2_options* options, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    return new rs2_options_list{ options->options->get_supported_options() };
+    auto rs2_list = new rs2_options_list;
+    auto option_ids = options->options->get_supported_options();
+    rs2_list->list.reserve( option_ids.size() );
+    for( auto option_id : option_ids )
+    {
+        auto & option = options->options->get_option( option_id );
+        std::shared_ptr< const json > value;
+        if( option.is_enabled() )
+            value = std::make_shared< const json >( option.get_value() );
+        auto wrapper = new rs2_option_value_wrapper( option_id, option.get_value_type(), value );
+        rs2_list->list.push_back( wrapper );
+    }
+    return rs2_list;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, options)
 
@@ -700,13 +898,24 @@ HANDLE_EXCEPTIONS_AND_RETURN(0, options)
 rs2_option rs2_get_option_from_list(const rs2_options_list* options, int i, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    return options->list[i];
+    return options->list.at( i )->id;
 }
-HANDLE_EXCEPTIONS_AND_RETURN(RS2_OPTION_COUNT, options)
+HANDLE_EXCEPTIONS_AND_RETURN(RS2_OPTION_COUNT, options, i)
+
+rs2_option_value const * rs2_get_option_value_from_list( const rs2_options_list * options, int i, rs2_error ** error ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( options );
+    auto const p_option_value = options->list.at( i );
+    ++p_option_value->ref_count;
+    return p_option_value;
+}
+HANDLE_EXCEPTIONS_AND_RETURN( nullptr, options, i )
 
 void rs2_delete_options_list(rs2_options_list* list) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(list);
+    for( auto wrapper : list->list )
+        rs2_delete_option_value( wrapper );
     delete list;
 }
 NOEXCEPT_RETURN(, list)
@@ -722,7 +931,6 @@ void rs2_get_option_range(const rs2_options* options, rs2_option option,
     float* min, float* max, float* step, float* def, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    VALIDATE_OPTION(options, option);
     VALIDATE_NOT_NULL(min);
     VALIDATE_NOT_NULL(max);
     VALIDATE_NOT_NULL(step);
@@ -1188,7 +1396,6 @@ NOEXCEPT_RETURN(, frame)
 const char* rs2_get_option_description(const rs2_options* options, rs2_option option, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    VALIDATE_OPTION(options, option);
     return options->options->get_option(option).get_description();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, options, option)
@@ -1203,10 +1410,22 @@ HANDLE_EXCEPTIONS_AND_RETURN(, frame)
 const char* rs2_get_option_value_description(const rs2_options* options, rs2_option option, float value, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(options);
-    VALIDATE_OPTION(options, option);
     return options->options->get_option(option).get_value_description(value);
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, options, option, value)
+
+static void populate_options_list( rs2_options_list * updated_options_list,
+                                   options_watcher::options_and_values const & updated_options )
+{
+    for( auto & id_value : updated_options )
+    {
+        options_watcher::option_and_value const & option_and_value = id_value.second;
+        updated_options_list->list.push_back(
+            new rs2_option_value_wrapper( id_value.first,
+                                          option_and_value.sptr->get_value_type(),
+                                          option_and_value.p_last_known_value ) );
+    }
+}
 
 void rs2_set_options_changed_callback( rs2_options * options,
                                        rs2_options_changed_callback_ptr callback,
@@ -1217,11 +1436,10 @@ void rs2_set_options_changed_callback( rs2_options * options,
     auto sens = dynamic_cast< rs2_sensor * >( options );
     VALIDATE_NOT_NULL( sens );
     sens->subscription = sens->sensor->register_options_changed_callback(
-        [callback]( const std::map< rs2_option, std::shared_ptr< option > > & updated_options )
+        [callback]( options_watcher::options_and_values const & updated_options )
         {
             rs2_options_list * updated_options_list = new rs2_options_list(); // Should be on heap if user will choose to save for later use.
-            for( auto option : updated_options )
-                updated_options_list->list.push_back( option.first );
+            populate_options_list( updated_options_list, updated_options );
             callback( updated_options_list );
         } );
 }
@@ -1242,11 +1460,10 @@ void rs2_set_options_changed_callback_cpp( rs2_options * options,
     auto sens = dynamic_cast< rs2_sensor * >( options );
     VALIDATE_NOT_NULL( sens );
     sens->subscription = sens->sensor->register_options_changed_callback(
-        [cb]( const std::map< rs2_option, std::shared_ptr< option > > & updated_options )
+        [cb]( options_watcher::options_and_values const & updated_options )
         {
             rs2_options_list * updated_options_list = new rs2_options_list(); // Should be on heap if user will choose to save for later use.
-            for( auto option : updated_options )
-                updated_options_list->list.push_back( option.first );
+            populate_options_list( updated_options_list, updated_options );
             cb->on_value_changed( updated_options_list );
         } );
 }
@@ -2460,7 +2677,7 @@ rs2_processing_block* rs2_create_align(rs2_stream align_to, rs2_error** error) B
 {
     VALIDATE_ENUM(align_to);
 
-    auto block = create_align(align_to);
+    auto block = align::create_align(align_to);
 
     return new rs2_processing_block{ block };
 }
@@ -2700,7 +2917,7 @@ NOARGS_HANDLE_EXCEPTIONS_AND_RETURN(0)
 rs2_device* rs2_create_software_device(rs2_error** error) BEGIN_API_CALL
 {
     // We're not given a context...
-    auto ctx = context::make( rsutils::json::object( { { "dds", false } } ) );
+    auto ctx = context::make( json::object( { { "dds", false } } ) );
     auto dev_info = std::make_shared< software_device_info >( ctx );
     auto dev = std::make_shared< software_device >( dev_info );
     dev_info->set_device( dev );
@@ -3295,8 +3512,8 @@ int rs2_check_firmware_compatibility(const rs2_device* device, const void* fw_im
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(fw_image);
 
-    auto fwud = std::dynamic_pointer_cast<updatable>(device->device);
-    if (!fwud)
+    auto fwud = std::dynamic_pointer_cast< firmware_check_interface >( device->device );
+    if( ! fwud )
         throw std::runtime_error("This device does not support update protocol!");
 
     std::vector<uint8_t> buffer((uint8_t*)fw_image, (uint8_t*)fw_image + fw_image_size);
@@ -3482,6 +3699,24 @@ void rs2_load_json(rs2_device* dev, const void* json_content, unsigned content_s
 }
 HANDLE_EXCEPTIONS_AND_RETURN(, dev, json_content, content_size)
 
+void rs2_start_collecting_fw_logs( rs2_device * dev, rs2_error ** error ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( dev );
+    auto fw_logger = VALIDATE_INTERFACE( dev->device, librealsense::firmware_logger_extensions );
+
+    fw_logger->start();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(, dev )
+
+void rs2_stop_collecting_fw_logs( rs2_device * dev, rs2_error ** error ) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL( dev );
+    auto fw_logger = VALIDATE_INTERFACE( dev->device, librealsense::firmware_logger_extensions );
+
+    fw_logger->stop();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(, dev )
+
 rs2_firmware_log_message* rs2_create_fw_log_message(rs2_device* dev, rs2_error** error)BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(dev);
@@ -3610,49 +3845,57 @@ NOEXCEPT_RETURN(, fw_log_parsed_msg)
 const char* rs2_get_fw_log_parsed_message(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_message().c_str();
+    return fw_log_parsed_msg->firmware_log_parsed->message.c_str();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, fw_log_parsed_msg)
 
 const char* rs2_get_fw_log_parsed_file_name(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_file_name().c_str();
+    return fw_log_parsed_msg->firmware_log_parsed->file_name.c_str();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, fw_log_parsed_msg)
 
 const char* rs2_get_fw_log_parsed_thread_name(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_thread_name().c_str();
+    return fw_log_parsed_msg->firmware_log_parsed->source_name.c_str();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, fw_log_parsed_msg)
+
+const char* rs2_get_fw_log_parsed_module_name(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
+{
+    VALIDATE_NOT_NULL(fw_log_parsed_msg);
+    return fw_log_parsed_msg->firmware_log_parsed->module_name.c_str();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, fw_log_parsed_msg)
+
 
 rs2_log_severity rs2_get_fw_log_parsed_severity(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_severity();
+    return fw_log_parsed_msg->firmware_log_parsed->severity;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(RS2_LOG_SEVERITY_NONE, fw_log_parsed_msg)
 
 unsigned int rs2_get_fw_log_parsed_line(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_line();
+    return fw_log_parsed_msg->firmware_log_parsed->line;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, fw_log_parsed_msg)
 
 unsigned int rs2_get_fw_log_parsed_timestamp(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_timestamp();
+    return fw_log_parsed_msg->firmware_log_parsed->timestamp;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, fw_log_parsed_msg)
 
 unsigned int rs2_get_fw_log_parsed_sequence_id(rs2_firmware_log_parsed_message* fw_log_parsed_msg, rs2_error** error) BEGIN_API_CALL
 {
     VALIDATE_NOT_NULL(fw_log_parsed_msg);
-    return fw_log_parsed_msg->firmware_log_parsed->get_sequence_id();
+    return fw_log_parsed_msg->firmware_log_parsed->sequence;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, fw_log_parsed_msg)
 

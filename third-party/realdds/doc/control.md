@@ -10,7 +10,8 @@ All control messages need to be re-broadcast with a result, for other clients to
 
 When a control is sent, some way to identify a reply to that specific control must exist:
 
-- Replies will have the same `id` as the original control. This means **controls and notifications must have separate identifiers**.
+- Replies will have the same `id` as the original control. This means **controls and notifications must have separate identifiers**
+- The `id` may be retrieved from the attached `control` (see below) if available with `sample`
 
 Additionally, when the server gets a control message, the DDS sample will contain a "publication handle". This is the `GUID` of the writer (including the participant) to identify the control source. A unique sequence number for each control sample is available from the `sample-identity`. Without these, it is impossible to identify the origin of the control and therefore, whether we're waiting on it or not.
 
@@ -36,12 +37,11 @@ An error is a reply where the `status` is not OK:
 
 ```JSON
 {
-    "id": "query-option",
-    "sample": ["010f9a5f64d95fd300000000.403", 1],
     "control": {
         "id": "query-option",
         "option-name": "opt16"
         },
+    "sample": ["010f9a5f64d95fd300000000.403", 1],
     "status": "error",
     "explanation": "Test Device does not support option opt16"
 }
@@ -55,57 +55,110 @@ Unlike [notifications](notifications.md), this is not possible.
 
 ## Control Messages
 
+
 ### `query-option` & `set-option`
 
-Returns or sets the current `value` of an option within a device.
+Returns or sets the `value` of a single option within the device.
 
 - `id` is `query-option` or `set-option`
-- `option-name` is the unique option name within its owner
-    - Usually this is a single string value, but can also be an array of names for bulk queries: `["option1", "option2", ...]`
-- `stream-name` is the unique name of the stream it's in within the device
-    - for a device option, this may be omitted
-- for `set-option`, `value` is the new value (float)
+- `option-name` is the option name, a string value
+- `stream-name` is the name of the stream the option is in
+    - For device options, this should be omitted
+- for `set-option`, a `value` supplies the value to set
+    - Note: the reply may provide a different value that was actually set
 
+E.g.:
 ```JSON
 {
     "id": "query-option",
-    "option-name": "opt-name"
+    "option-name": "IP address"
 }
 ```
 
-The reply should include the original control, plus:
-
-- `value` will include the current or new value
-    - In the case of bulk queries, this will be an array of values, in the same size and ordering as the control's `option-name` array: `[<value-of-option1>, <value-of-option2>, ...]`
-    - If the `option-name` array is empty, all option values will be returned in a `option-values` key, instead (see below)
-
+The reply should include the original control plus a `value`:
 ```JSON
 {
-    "id": "query-option",
     "sample": ["010f9a5f64d95fd300000000.403", 1],
-    "value": 0.5,
+    "value": "1.2.3.4",
     "control": {
         "id": "query-option",
-        "option-name": "opt-name"
-        }
-}
-```
-
-Both querying and setting options involve a very similar reply that can be handled in the same manner.
-
-A new option value should conform to the specific option's value range as communicated when the device was [initialized](initialization.md).
-
-Option values that are changed *by the server* (without a control message) are expected to send `set-option` notifications with no `control` or `sample` fields and an `option-values` array:
-
-```JSON
-{
-    "id": "set-option",
-    "option-values": {
-        "option1": 5,
-        "option2": "Stacy"
+        "option-name": "IP address"
     }
 }
 ```
+
+The same exact behavior for `set-option` except a `value` is provided in the control:
+```JSON
+{
+    "sample": ["010f9a5f64d95fd300000000.403", 1],
+    "value": 10.0,
+    "control": {
+        "id": "set-option",
+        "stream-name": "Color",
+        "option-name": "Exposure",
+        "value": 10.5
+    }
+}
+```
+New option values should conform to each specific option's value range as communicated when the device was [initialized](initialization.md).
+
+
+### `query-options`: bulk queries
+
+Like `query-option`, but asking for all option values at once, based on either stream, sensor, or device.
+
+- For stream-specific options, use `stream-name`
+    - For device-specific options, use `"stream-name": ""`
+- For sensor-specific options, use `sensor-name`
+- To globally get ALL options for all streams including device options, use neither
+
+E.g.:
+```JSON
+{
+    "id": "query-options",
+    "stream-name": "Color"
+}
+```
+
+A stream-name-to-option-name-to-value mapping called `option-values` is returned:
+```JSON
+{
+    "sample": ["010f9a5f64d95fd300000000.403", 1],
+    "option-values": {
+        "IP address": "1.2.3.4",
+        "Color": {
+            "Exposure": 10.0,
+            "Gain": 5
+        },
+        "Depth": {
+            "Exposure": 15.0
+        }
+    },
+    "control": {
+        "id": "query-options"
+    }
+}
+```
+Device options are directly embedded in `option-values`; stream options are in hierarchies of their own.
+
+#### periodic updates
+
+Option values that are changed *by the server* (without a control message) are expected to send `query-options` notifications with no `control` or `sample` fields:
+```JSON
+{
+    "id": "query-options",
+    "option-values": {
+        "Color": {
+            "Exposure": 8.0,
+        },
+        "Depth": {
+            "Exposure": 20.0
+        }
+    }
+}
+```
+
+It is recommended this happens at least periodically (based on possible configuration setting?) to avoid the clients all having to query the device repeatedly.
 
 
 ### `hw-reset`
@@ -147,7 +200,6 @@ A reply can be expected. Attaching the control is recommended so it's clear what
 
 ```JSON
 {
-    "id": "hwm",
     "sample": ["010f9a5f64d95fd300000000.403", 1],
     "control": {
         "id": "hwm",
@@ -179,14 +231,69 @@ Rather than representing as `[0,100,2,255]`, a `hexarray` is instead represented
 * The first hex pair is for the first byte, the second hex pair for the second, onwards
 
 
-### `dfu-start` and `dfu-apply`
+### DFU
 
-These exist to support a device-update capability. They should be available even in recovery mode.
+**D**evice **F**irmware **U**pdate is the mechanism with which the device can have its firmware updated.
 
-`dfu-start` starts the DFU process. The device will subscribe to a `dfu` topic under the topic root (accepting a `blob` message, reliable), and reply.
+A device can run the flow when in recovery mode or during normal operation:
+* `dfu-start` starts the DFU process
+* The client will then publish the binary image over the `dfu` topic
+* Once the image is verified, the device will send back a notification, `dfu-ready`
+* When ready, a client can then send a `dfu-apply`
 
-The client will then publish the binary image over the `dfu` topic.
+#### `dfu-start`
 
-Once the image is verified, the device will send back a notification, `dfu-ready`. If not `OK`, then the device is expected to go back to the pre-DFU state and the process needs to start over. The `dfu` subscription can be removed at this time.
+Starts the DFU process.
 
-When ready, a client can then send a `dfu-apply`. The device will reply then take whatever time is needed (progress notifications are recommended) to have the image take effect. The device will reply, send a disconnection on `device-info`, and perform a hardware-reset after applying the image.
+The device will subscribe to a `dfu` topic under the topic root (accepting a `blob` message, reliable). Enough memory should be allocated to make sure we're ready to receive the image before a reply is sent.
+
+A reply should indicate the image is ready to be received.
+
+#### `dfu-ready`
+
+The device will wait a certain amount of time for an image to be received. It may error out with a timeout.
+
+Only one image can be received, and it should be from the same participant that initiated the DFU.
+
+The image, once received, will be checked for compatibility. If incompatible, incomplete, missing, etc. -- an error will be sent to the client.
+
+Errors can look like this:
+```JSON
+{
+    "id": "dfu-ready",
+    "status": "error",
+    "explanation": "incompatible FW version (5.17.0.1)"
+}
+```
+If status is not `OK`, then the device is expected to go back to the pre-DFU state and the process needs to start over.
+
+On success, the device may send back a `"crc": <crc32-value>` or `"size": <number-of-bytes>`, to help debug, or any other relevant content:
+```JSON
+{
+    "id": "dfu-ready",
+    "crc": <value>
+}
+```
+
+The `dfu` subscription can be removed at this time.
+
+#### `dfu-apply`
+
+When all the above is successful and the client is ready, a `dfu-apply` is sent to the device.
+If for any reason the DFU should be cancelled, the same message is sent but a `"cancel": true` should be present.
+In any case, the device needs to reply right away, **before** the DFU is actually applied!
+
+The device then takes whatever time is needed to have the image take effect. Progress notifications are recommended and take the same form as the reply:
+```JSON
+{
+    "id": "dfu-apply",
+    "progress": 0.2
+}
+```
+
+At any time, the process may error out. The device is expected to reset itself and the process would have to start over.
+
+On successful application of the image, the device shall perform a hardware-reset and come back up normally.
+Before any restart, the device will send a disconnection event on `device-info`.
+The disconnection is the signal to the client that the DFU is over.
+

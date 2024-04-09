@@ -1,5 +1,5 @@
 # License: Apache 2.0. See LICENSE file in root directory.
-# Copyright(c) 2023 Intel Corporation. All Rights Reserved.
+# Copyright(c) 2023-4 Intel Corporation. All Rights Reserved.
 
 #test:donotrun:!dds
 #test:retries:gha 2
@@ -44,7 +44,6 @@ with test.remote.fork( nested_indent=None ) as remote:
     ###############################################################################################################
     # The client is a device from which we send controls
     #
-    from dds import wait_for_devices
 
     with test.closure( 'Start the client participant' ):
         participant = dds.participant()
@@ -99,9 +98,10 @@ with test.remote.fork( nested_indent=None ) as remote:
             server_sequence += 1
             expect_notifications( n )
             reply = device.send_control( json, True )  # Wait for reply
-            test.check_equal( reply['id'], json['id'] )
             if test.check( reply.get('control') is not None ):
                 test.check_equal( reply['control']['id'], json['id'] )
+            else:
+                test.check_equal( reply['id'], json['id'] )
             test.check_equal( reply['sequence'], server_sequence )
             test.check_equal( reply['sample'][0], str(device.guid()) )
             notifications.wait( 3 )  # We may get the reply before the other notifications are received

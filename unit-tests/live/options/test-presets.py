@@ -3,15 +3,20 @@
 
 # test:device each(D400*)
 
+# See FW stability issue RSDSO-18908
+# test:retries 2
+
 import pyrealsense2 as rs
 from rspy import test
 from rspy import log
+from rspy import tests_wrapper as tw
 
 dev = test.find_first_device_or_exit()
 depth_sensor = dev.first_depth_sensor()
 color_sensor = dev.first_color_sensor()
 product_line = dev.get_info(rs.camera_info.product_line)
 
+tw.start_wrapper( dev )
 
 with test.closure( 'visual preset support', on_fail=test.ABORT ): # No use continuing the test if there is no preset support
     test.check( depth_sensor.supports( rs.option.visual_preset ) )
@@ -51,6 +56,6 @@ with test.closure( 'setting color options' ):
             test.check( color_sensor.get_option( rs.option.hue ) == 123 )
         else:
             raise RuntimeError( 'unsupported product line' )
-    
-    
+
+tw.stop_wrapper( dev )    
 test.print_results_and_exit()

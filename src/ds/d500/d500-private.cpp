@@ -27,13 +27,14 @@ namespace librealsense
                         throw not_implemented_exception(rsutils::string::from() << "USB device "
                             << std::hex << info.pid << ":" << info.vid << std::dec << " is not supported.");
                         break;
-                    }*/
+                    }
 
                     if (found)
                     {
                         devices.erase(it);
                         return true;
                     }
+                    */
                 }
             }
             return false;
@@ -156,8 +157,8 @@ namespace librealsense
         {
             auto& rgb_coefficients_table = rgb_calib_table.rgb_coefficients_table;
 
-            // checking if the fisheye distortion is needed
-            if (rgb_coefficients_table.distortion_model == RS2_DISTORTION_BROWN_CONRADY)
+            // checking if the fisheye distortion (2 in calibration table) is needed
+            if( rgb_coefficients_table.distortion_model != d500_calibration_distortion::brown_and_fisheye )
                 return;
 
             // matrix with the intrinsics - after they have been adapted to required resolution
@@ -192,7 +193,14 @@ namespace librealsense
             intrinsics.fy = k_brown.y.y;
 
             // update values in the distortion params of the calibration table
-            rgb_coefficients_table.distortion_model = RS2_DISTORTION_BROWN_CONRADY;
+            rgb_coefficients_table.distortion_model = d500_calibration_distortion::brown;
+
+            // Since we override the table we need an indication that the table has changed
+            if( rgb_coefficients_table.reserved[3] != 0 )
+                throw invalid_value_exception( "reserved field read from RGB distortion model table is expected to be zero" );
+
+            rgb_coefficients_table.reserved[3] = 1;
+
             rgb_coefficients_table.distortion_coeffs[5] = 0;
             rgb_coefficients_table.distortion_coeffs[6] = 0;
             rgb_coefficients_table.distortion_coeffs[7] = 0;
@@ -220,14 +228,26 @@ namespace librealsense
             intrinsics.width = width;
             intrinsics.height = height;
 
-            auto rect_params = compute_rect_params_from_resolution(table->rectified_intrinsics, 
-                width, height, false);
+            // For D555e, model will be brown and we need the unrectified intrinsics
+            // For SC, model will be brown_and_fisheye and we need the rectified
+            // NOTE that update_table_to_correct_fisheye_distortion() changes the model to brown, so we use reserved[3]
+            // as a flag to indicate this happened
+            bool use_base_intrinsics
+                = table->rgb_coefficients_table.distortion_model == d500_calibration_distortion::brown
+               && table->rgb_coefficients_table.reserved[3] == 0;
+
+            auto rect_params = compute_rect_params_from_resolution(
+                use_base_intrinsics ? table->rgb_coefficients_table.base_instrinsics
+                                    : table->rectified_intrinsics,
+                                      width,
+                                      height,
+                                      false );  // symmetry not needed for RGB
 
             intrinsics.fx = rect_params[0];
             intrinsics.fy = rect_params[1];
             intrinsics.ppx = rect_params[2];
             intrinsics.ppy = rect_params[3];
-            intrinsics.model = table->rgb_coefficients_table.distortion_model;
+            intrinsics.model = RS2_DISTORTION_BROWN_CONRADY;
             std::memcpy( intrinsics.coeffs,
                          table->rgb_coefficients_table.distortion_coeffs,
                          sizeof( intrinsics.coeffs ) );
@@ -251,5 +271,6 @@ namespace librealsense
 
             return{ rect_rot_mat,trans_vector };
         }
+
     } // librealsense::ds
 } // namespace librealsense

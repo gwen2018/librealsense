@@ -180,7 +180,7 @@ struct dds_participant::listener_impl : public eprosima::fastdds::dds::DomainPar
                                     eprosima::fastrtps::types::DynamicType_ptr dyn_type ) override
     {
         TypeSupport type_support( new eprosima::fastrtps::types::DynamicPubSubType( dyn_type ) );
-        LOG_DEBUG( _owner.name() << ": discovered topic " << topic_name << " of type: " << type_support->getName() );
+        LOG_DEBUG( _owner.name() << ": +topic " << topic_name << " [" << type_support->getName() << "]" );
         _owner.on_type_discovery( topic_name.c_str(), dyn_type );
     }
 };
@@ -248,7 +248,7 @@ void dds_participant::init( dds_domain_id domain_id, std::string const & partici
     else
         DDS_THROW( runtime_error, "provided settings are invalid: " << settings );
 
-    LOG_DEBUG( "participant '" << participant_name << "' (" << realdds::print_guid( guid() ) << ") is up on domain "
+    LOG_DEBUG( "participant '" << participant_name << "' (" << realdds::print_raw_guid( guid() ) << ") is up on domain "
                                << domain_id << " with settings: " << _settings.dump( 4 ) );
 #ifdef BUILD_EASYLOGGINGPP
     // DDS participant destruction happens when all contexts are done with it but, in some situations (e.g., Python), it
@@ -319,7 +319,7 @@ std::string dds_participant::print( dds_guid const & guid_to_print ) const
 
 void dds_participant::on_writer_added( dds_guid guid, char const * topic_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -332,7 +332,7 @@ void dds_participant::on_writer_added( dds_guid guid, char const * topic_name )
 
 void dds_participant::on_writer_removed( dds_guid guid, char const * topic_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -345,7 +345,7 @@ void dds_participant::on_writer_removed( dds_guid guid, char const * topic_name 
 
 void dds_participant::on_reader_added( dds_guid guid, char const * topic_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -358,7 +358,7 @@ void dds_participant::on_reader_added( dds_guid guid, char const * topic_name )
 
 void dds_participant::on_reader_removed( dds_guid guid, char const * topic_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -371,7 +371,7 @@ void dds_participant::on_reader_removed( dds_guid guid, char const * topic_name 
 
 void dds_participant::on_participant_added( dds_guid guid, char const * participant_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -384,7 +384,7 @@ void dds_participant::on_participant_added( dds_guid guid, char const * particip
 
 void dds_participant::on_participant_removed( dds_guid guid, char const * participant_name )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {
@@ -397,7 +397,7 @@ void dds_participant::on_participant_removed( dds_guid guid, char const * partic
 
 void dds_participant::on_type_discovery( char const * topic_name, eprosima::fastrtps::types::DynamicType_ptr dyn_type )
 {
-    for( auto wl : _listeners )
+    for( auto & wl : _listeners )
     {
         if( auto l = wl.lock() )
         {

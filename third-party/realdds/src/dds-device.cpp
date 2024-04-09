@@ -1,12 +1,17 @@
 // License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2022 Intel Corporation. All Rights Reserved.
+// Copyright(c) 2024 Intel Corporation. All Rights Reserved.
 
 #include <realdds/dds-device.h>
 #include <realdds/dds-participant.h>
+#include <realdds/dds-topic-reader.h>
 #include <realdds/dds-topic-writer.h>
+#include <realdds/topics/dds-topic-names.h>
 #include "dds-device-impl.h"
 
+#include <rsutils/time/timer.h>
 #include <rsutils/json.h>
+
+using rsutils::json;
 
 
 namespace realdds {
@@ -15,7 +20,7 @@ namespace realdds {
 dds_device::dds_device( std::shared_ptr< dds_participant > const & participant, topics::device_info const & info )
     : _impl( std::make_shared< dds_device::impl >( participant, info ) )
 {
-    LOG_DEBUG( "+device '" << _impl->debug_name() << "' on " << info.topic_root() );
+    LOG_DEBUG( "[" << debug_name() << "] device created on: " << info.topic_root() );
 }
 
 
@@ -24,12 +29,108 @@ bool dds_device::is_ready() const
     return _impl->is_ready();
 }
 
-void dds_device::wait_until_ready( size_t timeout_ns )
+
+bool dds_device::is_online() const
 {
-    _impl->wait_until_ready( timeout_ns );
+    return _impl->is_online();
 }
 
-std::shared_ptr< dds_participant > const& dds_device::participant() const
+
+void dds_device::wait_until_ready( size_t timeout_ms )
+{
+    if( is_ready() )
+        return;
+
+    if( ! timeout_ms )
+        DDS_THROW( runtime_error, "device is " << ( is_online() ? "not ready" : "offline" ) );
+
+    LOG_DEBUG( "[" << debug_name() << "] waiting until ready ..." );
+    rsutils::time::timer timer{ std::chrono::milliseconds( timeout_ms ) };
+    bool was_online = is_online();
+    do
+    {
+        if( timer.has_expired() )
+            DDS_THROW( runtime_error, "[" << debug_name() << "] timeout waiting to get ready" );
+        std::this_thread::sleep_for( std::chrono::milliseconds( 500 ) );
+        if( was_online )
+        {
+            if( ! is_online() )
+                DDS_THROW( runtime_error, "[" << debug_name() << "] device went offline" );
+        }
+        else
+            was_online = is_online();
+    }
+    while( ! is_ready() );
+}
+
+
+void dds_device::wait_until_online( size_t timeout_ms )
+{
+    if( is_online() )
+        return;
+
+    if( ! timeout_ms )
+        DDS_THROW( runtime_error, "device is offline" );
+
+    LOG_DEBUG( "[" << debug_name() << "] waiting until online ..." );
+    rsutils::time::timer timer{ std::chrono::milliseconds( timeout_ms ) };
+    do
+    {
+        if( timer.has_expired() )
+            DDS_THROW( runtime_error, "[" << debug_name() << "] timeout waiting to come online" );
+        std::this_thread::sleep_for( std::chrono::milliseconds( 500 ) );
+    }
+    while( ! is_online() );
+}
+
+
+void dds_device::wait_until_offline( size_t timeout_ms )
+{
+    if( is_offline() )
+        return;
+
+    if( ! timeout_ms )
+        DDS_THROW( runtime_error, "device is online" );
+
+    LOG_DEBUG( "[" << debug_name() << "] waiting until offline ..." );
+    rsutils::time::timer timer{ std::chrono::milliseconds( timeout_ms ) };
+    do
+    {
+        if( timer.has_expired() )
+            DDS_THROW( runtime_error, "[" << debug_name() << "] timeout waiting to go offline" );
+        std::this_thread::sleep_for( std::chrono::milliseconds( 500 ) );
+    }
+    while( ! is_offline() );
+}
+
+
+void dds_device::on_discovery_lost()
+{
+    // Called when the device-watcher has lost connection with the device
+    // Only devices that are discovered by the device-watcher get called with this!
+    // A device that loses discovery needs to be reinitialized
+    _impl->set_state( impl::state_t::OFFLINE );
+}
+
+
+void dds_device::on_discovery_restored( topics::device_info const & new_info )
+{
+    // Called when the device-watcher has re-connected with a device that was lost before
+    // Only devices that are discovered by the device-watcher get called with this!
+    if( new_info.name() != device_info().name() )
+        DDS_THROW( runtime_error, "device name cannot change" );
+    if( new_info.topic_root() != device_info().topic_root() )
+        DDS_THROW( runtime_error, "device topic root cannot change" );
+    if( new_info.serial_number() != device_info().serial_number() )
+        DDS_THROW( runtime_error, "device serial number cannot change" );
+
+    _impl->_info = new_info;
+    _impl->set_state( impl::state_t::ONLINE );
+    // NOTE: still not ready - pending handshake/reinitialization
+}
+
+
+std::shared_ptr< dds_participant > const & dds_device::participant() const
 {
     return _impl->_participant;
 }
@@ -42,6 +143,11 @@ std::shared_ptr< dds_subscriber > const & dds_device::subscriber() const
 topics::device_info const & dds_device::device_info() const
 {
     return _impl->_info;
+}
+
+std::string dds_device::debug_name() const
+{
+    return _impl->debug_name();
 }
 
 dds_guid const & dds_device::server_guid() const
@@ -81,21 +187,25 @@ size_t dds_device::foreach_option( std::function< void( std::shared_ptr< dds_opt
 
 void dds_device::open( const dds_stream_profiles & profiles )
 {
+    wait_until_ready( 0 );  // throw if not
     _impl->open( profiles );
 }
 
-void dds_device::set_option_value( const std::shared_ptr< dds_option > & option, float new_value )
+void dds_device::set_option_value( const std::shared_ptr< dds_option > & option, json new_value )
 {
-    _impl->set_option_value( option, new_value );
+    wait_until_ready( 0 );  // throw if not
+    _impl->set_option_value( option, std::move( new_value ) );
 }
 
-float dds_device::query_option_value( const std::shared_ptr< dds_option > & option )
+json dds_device::query_option_value( const std::shared_ptr< dds_option > & option )
 {
+    wait_until_ready( 0 );  // throw if not
     return _impl->query_option_value( option );
 }
 
-void dds_device::send_control( topics::flexible_msg && msg, rsutils::json * reply )
+void dds_device::send_control( topics::flexible_msg && msg, json * reply )
 {
+    wait_until_ready( 0 );  // throw if not
     _impl->write_control_message( std::move( msg ), reply );
 }
 
@@ -135,32 +245,29 @@ rsutils::subscription dds_device::on_notification( on_notification_callback && c
 }
 
 
-static std::string const status_key( "status", 6 );
-static std::string const status_ok( "ok", 2 );
-static std::string const explanation_key( "explanation", 11 );
-static std::string const id_key( "id", 2 );
-
-
-bool dds_device::check_reply( rsutils::json const & reply, std::string * p_explanation )
+bool dds_device::check_reply( json const & reply, std::string * p_explanation )
 {
-    auto status_j = reply.nested( status_key );
+    auto status_j = reply.nested( topics::reply::key::status );
     if( ! status_j )
-        return true;
+        return true;  // no status == ok
     std::ostringstream os;
     if( ! status_j.is_string() )
         os << "bad status " << status_j;
-    else if( status_j.string_ref() == status_ok )
+    else if( status_j.string_ref() == topics::reply::status::ok )
         return true;
     else
     {
         os << "[";
-        if( auto id = reply.nested( id_key ) )
+        // An 'id' is mandatory, but if it's a response to a control it's contained there
+        auto const control = reply.nested( topics::reply::key::control );
+        auto const control_sample = control ? reply.nested( topics::reply::key::sample ) : rsutils::json_ref( rsutils::missing_json );
+        if( auto id = ( control_sample ? control.get_json() : reply ).nested( topics::reply::key::id ) )
         {
             if( id.is_string() )
                 os << "\"" << id.string_ref() << "\" ";
         }
         os << status_j.string_ref() << "]";
-        if( auto explanation_j = reply.nested( explanation_key ) )
+        if( auto explanation_j = reply.nested( topics::reply::key::explanation ) )
         {
             os << ' ';
             if( explanation_j.string_ref_or_empty().empty() )

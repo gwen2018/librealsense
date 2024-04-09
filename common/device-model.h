@@ -61,7 +61,7 @@ inline ImVec4 blend(const ImVec4& c, float a)
 
 namespace rs2
 {
-    void imgui_easy_theming(ImFont*& font_14, ImFont*& font_18, ImFont*& monofont);
+    void imgui_easy_theming(ImFont*& font_dynamic, ImFont*& font_18, ImFont*& monofont, int& font_size);
 
     constexpr const char* server_versions_db_url = "https://librealsense.intel.com/Releases/rs_versions_db.json";
 
@@ -121,6 +121,7 @@ namespace rs2
             static const char* last_calib_notice{ "viewer_model.last_calib_notice" };
             static const char* is_measuring{ "viewer_model.is_measuring" };
             static const char* output_open{ "viewer_model.output_open" };
+            static const char* dashboard_open{ "viewer_model.dashboard_open" };
             static const char* search_term{ "viewer_model.search_term" };
 
             static const char* log_to_console{ "viewer_model.log_to_console" };
@@ -147,6 +148,7 @@ namespace rs2
             static const char* width{ "window.width" };
             static const char* height{ "window.height" };
             static const char* maximized{ "window.maximized" };
+            static const char* font_size{ "window.font_size" };
         }
         namespace performance
         {
