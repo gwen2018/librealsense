@@ -40,12 +40,12 @@ namespace librealsense
                     case RS420_MM_PID:
                     case RS435I_PID:
                     case RS455_PID:
+                    case RS438_PID:
                         found = (result.mi == 6);
                         break;
                     case RS415_PID:
                     case RS416_RGB_PID:
                     case RS435_RGB_PID:
-                    case RS438_PID:
                         found = (result.mi == 5);
                         break;
                     default:

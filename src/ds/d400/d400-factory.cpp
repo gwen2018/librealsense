@@ -1093,7 +1093,7 @@ namespace librealsense
         case RS457_PID:
             return std::make_shared< rs457_device >( dev_info, register_device_notifications );
         case RS438_PID:
-            return std::make_shared< rs435_device >( dev_info, register_device_notifications );
+            return std::make_shared< rs435i_device >( dev_info, register_device_notifications );
         default:
             throw std::runtime_error( rsutils::string::from() << "Unsupported RS400 model! 0x" << std::hex
                                                               << std::setw( 4 ) << std::setfill( '0' ) << (int)pid );
