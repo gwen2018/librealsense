@@ -245,7 +245,7 @@ int main(int argc, char * argv[]) try
     // Create and initialize GUI related objects
     std::string title = "RealSense Align Example - " + device_sn + " " + device_name + " " + sp_description;
 
-    window app(1920, 1080, title.c_str()); // Simple window handling
+    window app(1280, 720, title.c_str()); // Simple window handling
     ImGui_ImplGlfw_Init(app, false);      // ImGui library intializition
 
     // Define two align objects. One will be used to align
