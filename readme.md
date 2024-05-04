@@ -5,7 +5,7 @@
 
 
 ## Overview
-Intel® RealSense™ SDK is a cross-platform library for Intel® RealSense™ depth cameras. This special 2.55.91 ED version enables the D438 prototype cameras which outputs MJPEG image format from the new 13M RGB sensor.
+Intel® RealSense™ SDK is a cross-platform library for Intel® RealSense™ depth cameras. This special 2.56.93 ED version enables the D438 prototype cameras which outputs MJPEG image format from the new 13M RGB sensor.
 
 In addition to D438 features, this version of SDK also supports same common capabilities as the regular SDK. It allows depth and color streaming, and provides intrinsic and extrinsic calibration information.
 The library also offers synthetic streams (pointcloud, depth aligned to color and vise-versa).
@@ -39,7 +39,7 @@ git clone -b d438 https://github.com/gwen2018/librealsense.git
 ## Supported Platforms
 This ED was tested on the following platforms:
   1) Intel NUC with Ubuntu 22.04.1 LTS and ROS2 humble
-  2) Nvidia Jetson Xavier with Jetpack 4.6.1
+  2) Nvidia Jetson Xavier with Jetpack 5.0.2 and Nvidia Jetson Orin with Jetpack 5.1.2 
   3) Intel NUC with Windows 10 and Windows 11
 
 
@@ -65,7 +65,7 @@ sudo apt-get install nasm
       -DBUILDPYTHON_BINDINGS:bool=true \
       -DBUILD_WITH_CUDA=false \
       -DFORCE_RSUSB_BACKEND=false \
-      -DPYTHON_EXECUTABLE=/usr/bin/python3 \ -DCMAKEBUILD_TYPE=Release && \
+      -DPYTHON_EXECUTABLE=/usr/bin/python3 \ -DMAKE_BUILD_TYPE=Release && \
       make -j$(cat /proc/cpuinfo |grep proc |wc -l) && \
       sudo make install && \
       sudo mv libjpeg-turbo/lib/libturbojpeg.so* /usr/local/lib
@@ -75,13 +75,14 @@ sudo apt-get install nasm
  ```
      ls /usr/local/lib
 
-     librealsense2-gl.so -> librealsense2-gl.so.2.53
-     librealsense2-gl.so.2.53 -> librealsense2-gl.so.2.53.2
-     librealsense2-gl.so.2.53.2
-     librealsense2.so -> librealsense2.so.2.53
-     librealsense2.so.2.53 -> librealsense2.so.2.53.2
-     librealsense2.so.2.53.2
-     librealsense-file.a
+     librealsense2-gl.so -> librealsense2-gl.so.2.56
+     librealsense2-gl.so.2.56 -> librealsense2-gl.so.2.56.92
+     librealsense2-gl.so.2.56.0
+     librealsense2-gl.so.2.56.92
+     librealsense2.so -> librealsense2.so.2.56
+     librealsense2.so.2.56 -> librealsense2.so.2.56.92
+     librealsense2.so.2.56.0
+     librealsense2.so.2.56.92
      libturbojpeg.so -> libturbojpeg.so.0
      libturbojpeg.so.0 -> libturbojpeg.so.0.3.0
      libturbojpeg.so.0.3.0
@@ -99,26 +100,20 @@ realsense-viewer
 
   8) The RGB sensor is 13M, so the maximum resolution is 4160x3120@15 fps, choose RGB8 format in the viewer for rendering the RGB image graphically. the camera itself output JPEG but the SDK converts in into RGB8.
 
-## Building on Nvidia Jetson Xavier
+## Building on Nvidia Jetson Xavier and Orin
 Similar as compilation on Intel Ubuntu platform above. To utilize CUDA capabilities on the Jetson platform, enable CUDA while compile with -DBUILD_WITH_CUDA=true
 
 ## Building on Windows
 1) Download nasm compiler ZIP, unzip it and make sure the executable in PATH.
    https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/win64/nasm-2.15.05-win64.zip
-2) Use cmake and Visual Studio 2015 to compile
+2) Use cmake and Visual Studio 2019 to compile
 
 
 ## ROS support
    D438 supports ROS2 with a special version of Realsense ROS Wrapper.
 
-   On platforms with newer ROS2 versions, for example, Humble, use d438 branch:
 ```
       git clone -b d438 https://github.com/gwen2018/realsense-ros.git
-```
-
-   On platforms with older ROS2 versions, for example, Galactic, use d438-4.54.1 branch:
-```
-      git clone -b d438-4.54.1 https://github.com/gwen2018/realsense-ros.git
 ```
 
    a) compile the Realsense ROS2 wrapper
@@ -130,7 +125,9 @@ Similar as compilation on Intel Ubuntu platform above. To utilize CUDA capabilit
 ```
 
    b) connect D438 camera and launch camera node with rs_launch.py sample script
+```
       ros2 launch realsense2_camera rs_launch.py depth_module.profile:=848x480x15 rgb_camera.profile:=4160x3120x15 diagnostics_period:=1.0
+```      
 
 
 ## License
