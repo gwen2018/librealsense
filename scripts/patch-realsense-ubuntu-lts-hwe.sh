@@ -21,6 +21,7 @@ apply_hid_gyro_patch=0
 skip_plf_patch=0
 build_only=0
 skip_md_patch=0
+apply_d438_patch=0
 
 #Parse input
 while test $# -gt 0; do
@@ -93,7 +94,7 @@ k_tick=$(echo ${kernel_version[2]} | awk -F'-' '{print $2}')
 [ $k_maj_min -eq 504 ] && [ $k_tick -ge 156 ] && apply_hid_gyro_patch=1 && skip_hid_patch=1
 # For kernel versions 6+ powerline frequency already applied
 [ $k_maj_min -ge 600 ] && skip_plf_patch=1
-[ $k_maj_min -ge 605 ] && skip_md_patch=1
+[ $k_maj_min -ge 605 ] && skip_md_patch=1 && apply_d438_patch=1
 
 # Construct branch name from distribution codename {xenial,bionic,..} and kernel version
 # ubuntu_codename=`. /etc/os-release; echo ${UBUNTU_CODENAME/*, /}`
@@ -182,6 +183,12 @@ then
 			echo -e "\e[32mApplying realsense-metadata patch\e[0m"
 			patch -p1 < ../scripts/realsense-metadata-${ubuntu_codename}-${kernel_branch}.patch || patch -p1 < ../scripts/realsense-metadata-${ubuntu_codename}-master.patch
 		fi
+
+		if [ ${apply_d438_patch} -eq 1 ]; then
+			echo -e "\e[32mApplying realsense-metadata patch for d438\e[0m"
+			patch -p1 < ../scripts/realsense-metadata-${ubuntu_codename}-${kernel_branch}-d438.patch
+		fi
+
 		if [ ${skip_hid_patch} -eq 0 ]; then
 			echo -e "\e[32mApplying realsense-hid patch\e[0m"
 			patch -p1 < ../scripts/realsense-hid-${ubuntu_codename}-${kernel_branch}.patch ||  patch -p1 < ../scripts/realsense-hid-${ubuntu_codename}-master.patch
