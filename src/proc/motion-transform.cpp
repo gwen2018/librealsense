@@ -121,6 +121,8 @@ namespace librealsense
         return ret;
     }
 
+#define GYRO_NOISE_LIMIT 0.05
+
     void motion_transform::correct_motion_helper(float3* xyz, rs2_stream stream_type) const
     {
         // The IMU sensor orientation shall be aligned with depth sensor's coordinate system
@@ -137,6 +139,17 @@ namespace librealsense
 
                 if (stream_type == RS2_STREAM_GYRO)
                     *xyz = _gyro_sensitivity * (*xyz) - _gyro_bias;
+            }
+        }
+
+        if (stream_type == RS2_STREAM_GYRO)
+        {
+            // temporary workaround - gyro drift due to noise, adjust GYRO_NOISE_LIMIT as appropriate
+            if (xyz->length() < GYRO_NOISE_LIMIT)
+            {
+                xyz->x = 0.0;
+                xyz->y = 0.0;
+                xyz->z = 0.0;
             }
         }
     }
